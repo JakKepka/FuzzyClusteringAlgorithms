@@ -1,3 +1,7 @@
 
-
+# Ignorowanie notatek
+obsidian_vault/
 klasyfikator_vault/
+
+# Ignorowanie zbiorów danych
+datasets/
