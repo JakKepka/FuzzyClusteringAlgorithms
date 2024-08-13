@@ -3,14 +3,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.io import arff
 
+# Przekształcanie szeregów czasowych w jeden DataFrame
+    # Input:
+    #       df - DataFrame, gdzie pierwsza kolumna zawiera dane szeregów czasowych, a druga klasyfikację
+    # Output:
+    #       stacked - DataFrame, gdzie każdy wiersz zawiera scalone dane z poszczególnych szeregów czasowych
+    #       labels - tablica z etykietami klasyfikacyjnymi dla każdego szeregów czasowych
+    
+    # Założenie, że wymiar danych to liczba wierszy pierwszego elementu w DataFrame
 def stack_time_series(df):
-    """This function creates new dataframe without segmentation and classification
 
-    Args:
-        df: segmented dataframe
-    Returns:
-        A pandas dataframe with shape [dimensions of input data,original count of time series]
-    """
     dimensionality = df.iloc[0,0].shape[0] # assumption that data dimensionality is the number of rows of first element in dataframe
     # also the first column is expected to store data (second stores classification)
     
@@ -31,15 +33,15 @@ def stack_time_series(df):
             
     return stacked, np.array(labels)
 
-def stack_time_series_randomly(df):
-    """This function creates new dataframe without segmentation and classification, what is more its rows are randomly shuffled
+# Przekształcanie szeregów czasowych w jeden DataFrame z losowym przemieszaniem danych i identyfikowaniem punktów zmiany
+# Input:
+#       df - DataFrame, gdzie pierwsza kolumna zawiera dane szeregów czasowych, a druga klasyfikację
+# Output:
+#       stacked - DataFrame, gdzie każdy wiersz zawiera scalone dane z poszczególnych szeregów czasowych
+#       change_points - tablica punktów zmiany w danych, wskazująca miejsca, gdzie zmienia się klasa
+#       labels - tablica z etykietami klasyfikacyjnymi dla każdego szeregów czasowych
+def stack_time_series_randomly(df, seed=43):
 
-    Args:
-        df: segmented dataframe
-    Returns:
-        A pandas dataframe with shape [dimensions of input data,original count of time series]
-        , numpy array containing change points
-    """
     dimensionality = df.iloc[0,0].shape[0] # assumption that data dimensionality is the number of rows of first element in dataframe
     # also the first column is expected to store data (second stores classification)
 
@@ -50,7 +52,7 @@ def stack_time_series_randomly(df):
 
     labels = []
     # randomize rows
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
     # filling it with empty numpy arrays
     for i in range(dimensionality):
         stacked.iloc[i, 0] = np.array([])

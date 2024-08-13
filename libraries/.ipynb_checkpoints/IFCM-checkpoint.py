@@ -108,14 +108,13 @@ def incremental_fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', i
     # data jeste postaci (n_samples, k_features)
     
     # Struktura do której bedziemy zbierać informacje z każdej iteracji
-    statistics = Multilist(['fpc'])
+    statistics = Multilist(['fpc', 'jm'])
     
     centroids = init_centroid
     
     if(init_centroid is None):
         centroids = initialize_c_first_centroids(data, c)
 
-    
     fuzzy_labels = create_labels(data, centroids, metric, m)
 
     # Initialize loop parameters
@@ -132,12 +131,12 @@ def incremental_fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', i
             [centroids, fuzzy_labels, Jjm, dist] = cmeans0(data, centroids_copy, metric, c, m)
 
         fpc = _fp_coeff(fuzzy_labels)
-        statistics.add_elements([fpc])
+        statistics.add_elements([fpc, Jjm/data.shape[0]])
         p += 1
         
         # Stopping rule
-        if np.linalg.norm(fuzzy_labels - fuzzy_labels_copy) < error and p > 1:
-            break
+        #if np.linalg.norm(fuzzy_labels - fuzzy_labels_copy) < error and p > 1:
+        #    break
         if np.linalg.norm(centroids_copy - centroids) < error and p > 1:
             break
             
@@ -156,46 +155,41 @@ def incremental_fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', i
 def incremental_fuzzy_cmeans_predict(test_data, cntr_trained, m, error, maxiter, metric='euclidean', init=None, seed=None):
     c = cntr_trained.shape[0]
 
-    # Setup u0
-    if init is None:
-        if seed is not None:
-            np.random.seed(seed=seed)
-        n = test_data.shape[1]
-        u0 = np.random.rand(c, n)
-        u0 = normalize_columns(u0)
-        init = u0.copy()
-    u0 = init
-    u = np.fmax(u0, np.finfo(np.float64).eps)
 
+    test_data = test_data.T
+    # Setup u0
+    fuzzy_labels = init
+    if init is None:
+        fuzzy_labels = create_labels(test_data, cntr_trained, metric, m)
+    fuzzy_labels_start = fuzzy_labels
     # Initialize loop parameters
     jm = np.zeros(0)
     p = 0
 
     # Main cmeans loop
     while p < maxiter - 1:
-        u2 = u.copy()
-        [u, Jjm, d] = _cmeans_predict0(test_data, cntr_trained, u2, c, m,metric)
+        fuzzy_labels_copy = fuzzy_labels.copy()
+        [fuzzy_labels, Jjm, d] = _cmeans_predict0(test_data, cntr_trained, fuzzy_labels_copy, c, m,metric)
         jm = np.hstack((jm, Jjm))
         p += 1
 
         # Stopping rule
-        if np.linalg.norm(u - u2) < error:
+        if np.linalg.norm(fuzzy_labels - fuzzy_labels_copy) < error:
             break
 
     # Final calculations
-    error = np.linalg.norm(u - u2)
-    fpc = _fp_coeff(u)
+    error = np.linalg.norm(fuzzy_labels - fuzzy_labels_copy)
+    fpc = _fp_coeff(fuzzy_labels)
 
-    return u, u0, d, jm, p, fpc 
+    return fuzzy_labels, fuzzy_labels_start, d, jm, p, fpc 
     
-def _cmeans_predict0(test_data, cntr, u_old, c, m, metric):
+def _cmeans_predict0(test_data, cntr, fuzzy_labels_copy, c, m, metric):
 
     # Normalizing, then eliminating any potential zero values.
-    u_old = normalize_columns(u_old)
-    u_old = np.fmax(u_old, np.finfo(np.float64).eps)
+    fuzzy_labels_copy = normalize_columns(fuzzy_labels_copy)
+    fuzzy_labels_copy = np.fmax(fuzzy_labels_copy, np.finfo(np.float64).eps)
 
-    um = u_old ** m
-    test_data = test_data.T
+    fuzzy_labels_m = fuzzy_labels_copy ** m
 
     # For prediction, we do not recalculate cluster centers. The test_data is
     # forced to conform to the prior clustering.
@@ -203,8 +197,8 @@ def _cmeans_predict0(test_data, cntr, u_old, c, m, metric):
     d = _distance(test_data, cntr, metric)
     d = np.fmax(d, np.finfo(np.float64).eps)
 
-    jm = (um * d ** 2).sum()
+    jm = (fuzzy_labels_m * d ** 2).sum()
 
-    u = normalize_power_columns(d, - 2. / (m - 1))
+    fuzzy_labels = normalize_power_columns(d, - 2. / (m - 1))
 
-    return u, jm, d
+    return fuzzy_labels, jm, d

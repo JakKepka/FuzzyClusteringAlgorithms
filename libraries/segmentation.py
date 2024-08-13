@@ -40,7 +40,7 @@ def stack_time_series(df):
 #       stacked - DataFrame, gdzie każdy wiersz zawiera scalone dane z poszczególnych szeregów czasowych
 #       change_points - tablica punktów zmiany w danych, wskazująca miejsca, gdzie zmienia się klasa
 #       labels - tablica z etykietami klasyfikacyjnymi dla każdego szeregów czasowych
-def stack_time_series_randomly(df):
+def stack_time_series_randomly(df, seed=43):
 
     dimensionality = df.iloc[0,0].shape[0] # assumption that data dimensionality is the number of rows of first element in dataframe
     # also the first column is expected to store data (second stores classification)
@@ -52,7 +52,8 @@ def stack_time_series_randomly(df):
 
     labels = []
     # randomize rows
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
+    
     # filling it with empty numpy arrays
     for i in range(dimensionality):
         stacked.iloc[i, 0] = np.array([])
