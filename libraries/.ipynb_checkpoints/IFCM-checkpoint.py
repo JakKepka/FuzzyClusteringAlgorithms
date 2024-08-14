@@ -104,7 +104,7 @@ def cmeans0(data, centroids, metric, c, m):
     return centroids, fuzzy_labels, jm, dist
 
 
-def incremental_fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', init_centroid=None, m_low_boost = False, m_low = 1.1, m_low_iter = 3):
+def incremental_fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', init_centroid=None, m_low_boost = True, m_low = 1.1, m_low_iter = 3):
     # data jeste postaci (n_samples, k_features)
     
     # Struktura do której bedziemy zbierać informacje z każdej iteracji
@@ -162,6 +162,7 @@ def incremental_fuzzy_cmeans_predict(test_data, cntr_trained, m, error, maxiter,
     if init is None:
         fuzzy_labels = create_labels(test_data, cntr_trained, metric, m)
     fuzzy_labels_start = fuzzy_labels
+    print(fuzzy_labels)
     # Initialize loop parameters
     jm = np.zeros(0)
     p = 0

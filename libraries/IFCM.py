@@ -162,6 +162,7 @@ def incremental_fuzzy_cmeans_predict(test_data, cntr_trained, m, error, maxiter,
     if init is None:
         fuzzy_labels = create_labels(test_data, cntr_trained, metric, m)
     fuzzy_labels_start = fuzzy_labels
+
     # Initialize loop parameters
     jm = np.zeros(0)
     p = 0
