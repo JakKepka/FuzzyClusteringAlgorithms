@@ -81,8 +81,8 @@ class DiagnosisTools:
         
         # Rysowanie centroidów dla każdej grupy
         start_idx = 0
-        for i, centroids in enumerate(centroids):
-            end_idx = start_idx + centroids.shape[0]
+        for i, centroid in enumerate(centroids):
+            end_idx = start_idx + centroid.shape[0]
             reduced = reduced_centroids[start_idx:end_idx]
             
             for j, point in enumerate(reduced):
