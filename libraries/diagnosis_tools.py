@@ -41,24 +41,39 @@ class DiagnosisTools:
         self.davies_bouldin_avg_data = []
         self.fpc_data = []
         self.rand_data = []
+        self.statistics_data = []
         
         # Centroidy
         self.centroids = []
 
 # Funkcje dodające
-    def add_elements(self, silhouette_avg, davies_bouldin_avg, fpc, rand):
+    def add_elements(self, silhouette_avg, davies_bouldin_avg, fpc, rand, statistics):
         self.silhouette_avg_data.append(silhouette_avg) 
         self.davies_bouldin_avg_data.append(davies_bouldin_avg)
         self.fpc_data.append(fpc)
         self.rand_data.append(rand)
+        self.statistics_data.append(statistics)
         
     def add_centroids(self, centroids):
         self.centroids.append(centroids)
+        
+    def create_statistics(self):
+        statistics = Multilist(['accuracy','precision','recall', 'f1score', 'mcc'])
 
+        for stats in self.statistics_data:
+            statistics.add_elements([stats['Accuracy'], stats['Precision'], stats['Recall'], stats['F1-Score'], stats['MCC']])
+
+        return statistics
+        
 # Funkcje rysujące wykresy
     def plot_lists(self,title='multiple plot'):
         plot_multiple_functions([(self.silhouette_avg_data, 'silhouette_avg'), (self.davies_bouldin_avg_data, 'davies_bouldin_avg'), (self.fpc_data, 'fpc'), (self.rand_data,'rand')], title)
-    
+
+    def plot_statistics(self,title='statistics plot'):
+        statistics = self.create_statistics()
+
+        statistics.plot_lists(title)
+        
     def plot_centroid_history(self, k):
         # Metoda pokazuje historię zmian centroidów z każdą iteracją/ z każdym dodanym chunkiem.
         
