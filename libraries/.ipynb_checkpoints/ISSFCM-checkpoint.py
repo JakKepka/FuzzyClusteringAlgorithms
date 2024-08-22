@@ -84,7 +84,7 @@ def create_labels(data, y, centroids, metric, m):
     # 1 - sum j = 1:C y(j)
     y_ = reflect_labels(y)
     y_ = np.tile(y_, (fuzzy_labels.shape[0], 1))
-
+    
     fuzzy_labels = y + np.multiply(fuzzy_labels, y_)
     
     return fuzzy_labels
@@ -151,9 +151,7 @@ def incremental_semi_supervised_fuzzy_cmeans(data, y, c, m, error, maxiter, metr
         # Stopping rule
         if np.linalg.norm(fuzzy_labels - fuzzy_labels_copy) < error and p > 1:
             break
-        if np.linalg.norm(centroids_copy - centroids) < error and p > 1:
-            break
-            
+      
     # Final calculations
     error = np.linalg.norm(fuzzy_labels - fuzzy_labels_copy)
     fpc = _fp_coeff(fuzzy_labels)
@@ -207,7 +205,7 @@ def incremental_semi_supervised_cmeans_predict0(test_data, cntr, u_old, c, m, me
     # Normalizing, then eliminating any potential zero values.
     u_old = normalize_columns(u_old)
     u_old = np.fmax(u_old, np.finfo(np.float64).eps)
-
+    
     um = u_old ** m
     test_data = test_data.T
 
