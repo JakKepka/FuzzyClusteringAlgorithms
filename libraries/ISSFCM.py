@@ -1,12 +1,23 @@
 from scipy.spatial.distance import cdist
 from libraries.diagnosis_tools import DiagnosisTools, Multilist
 import numpy as np
+import time 
+from tqdm import tqdm
+from IPython.display import clear_output
+
+from libraries.plot_functions import plot_pca, plot_pca_cluster
+from libraries.valid_data import valid_data_issfcm
+from libraries.process_data import merge_chunks
+from libraries.semi_supervised_matrix import upload_semi_supervised_matrix
+from libraries.chunks import create_chunks
+from libraries.clusters import count_points_for_clusters, sum_probability_for_clusters, popularity_of_clusters
 
 #################################################################################
 
                             ##Normalizacja##
 
 #################################################################################
+init_centroids = None
 
 def normalize_columns(columns):
     # broadcast sum over columns
@@ -166,6 +177,13 @@ def incremental_semi_supervised_fuzzy_cmeans(data, y, c, m, error, maxiter, metr
 
 #################################################################################
 
+def predict_data_issfcm(data_test, centroids, m=2, error=0.05, metric='euclidean'):
+
+    fuzzy_labels, u0, d, jm, p, fpc = incremental_semi_supervised_fuzzy_cmeans_predict(data_test.T, centroids, m=m, error=error, maxiter=1000, metric=metric, init=None)
+    
+    cluster_membership = np.argmax(fuzzy_labels, axis=0)
+
+    return  cluster_membership, fuzzy_labels, fpc
 
 def incremental_semi_supervised_fuzzy_cmeans_predict(test_data, cntr_trained, m, error, maxiter, metric='euclidean', init=None, seed=None):
     c = cntr_trained.shape[0]
@@ -222,3 +240,150 @@ def incremental_semi_supervised_cmeans_predict0(test_data, cntr, u_old, c, m, me
     u = normalize_power_columns(d, - 2. / (m - 1))
 
     return u, jm, d
+
+#################################################################################
+
+                        ##Local incrmental##
+
+#################################################################################
+
+# Funkcja liczy centroidy dla kolejnych chunków, centroidy są przekazywane jako parametr inicjalizacyjny dla kolejnych iteracji algorytmu.
+# Liczba punktów w algorytmie jest stała, do kolejnej iteracji algorytmu poprzednie punkty są zapominane.
+# Input:
+#       n_clusters - liczba centroidów
+#       chunks - dane w postaci listy chunków
+#       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
+#       validation_chunks - dane validacyjne
+#       validation_chunks_y - labele dla danych validacyjnych
+def train_local_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_supervised, chunks_classification_train, validation_chunks, validation_chunks_y, clusters_for_each_class, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+    # Początek pomiaru czasu
+    start_time = time.time()
+    
+    # Inicjalizacjia multi listy, która będzie zbierać potrzbne statystki
+    diagnosis_tools = DiagnosisTools()
+    diagnosis_iterations = []
+
+    # Mergujemy chunki w dataset
+    X_validation, y_validation = merge_chunks(validation_chunks, validation_chunks_y)
+    # Mergujemy chunki w dataset
+    X_train, y_train = merge_chunks(chunks, chunks_y)
+    # Rozmiary chunkw treningowych
+    chunk_train_sizes = [len(chunk) for chunk in chunks_y]
+    
+    
+    centroids = init_centroids
+    # Kolejne trenowanie modelu
+    for count, data in enumerate(chunks):
+            
+        chunk_y_supervised = chunks_y_supervised[count]
+        
+        # Segment jest klasy current_class
+        current_class = chunks_classification_train[count]
+        
+        # Wybieramy tylko centroidy do treningu, które łączą się z daną klasą.
+        clusters = list(clusters_for_each_class[current_class])
+
+        # Wybieramy centroidy które chcemy uczyć
+        centroids_local = centroids[clusters]
+        chunk_y_supervised_local = chunk_y_supervised[:,clusters]
+        
+        # Algorytm (di)ssfcm dla jednej iteracji, dla jednego chunk'a
+        centroids_local, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised_local, c = n_clusters, m=m, error=error, maxiter=1000, metric='euclidean', init_centroid=centroids_local)
+
+        # Łączenie wyćwiczone centroidy z starymi
+        centroids[clusters] = centroids_local
+        chunk_y_supervised[:,clusters] = chunk_y_supervised_local
+
+        # Obliczam fuzzy_labels dla przy pomocy wszystkich centroidów
+        _, fuzzy_labels, fpc = predict_data_issfcm(data, centroids)
+        
+        if(visualise_data):
+            plot_func(data, centroids, fuzzy_labels)
+        
+        # Validacja danych
+        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_issfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+        diagnosis_tools.add_centroids(centroids)
+
+        diagnosis_iterations.append(diagnosis_iteration)
+        
+        # Czyszczenie poprzedniego outputu
+        if(visualise_data == False):
+            clear_output(wait=True)
+        
+        # Wyświetlanie paska postępu
+        print('Rozważamy obecnie chunk numer: ', count)
+        print('Liczba klastrów: ', n_clusters)
+        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+    # Wyswielenie wyników
+    _, fuzzy_labels, fpc = predict_data_issfcm(X_validation, centroids)
+    plot_func(X_validation, centroids, fuzzy_labels)
+    popularity_of_clusters(fuzzy_labels, n_clusters)   
+
+    # Koniec pomiaru czasu
+    end_time = time.time()
+    
+    # Wyświetlenie czasu wykonania
+    execution_time = end_time - start_time
+    print(f"Czas wykonania: {execution_time} sekund")
+
+    return diagnosis_tools, diagnosis_iterations
+    
+#################################################################################
+
+                        ##Incrmental##
+
+#################################################################################
+
+# Funkcja liczy centroidy dla kolejnych chunków, centroidy są przekazywane jako parametr inicjalizacyjny dla kolejnych iteracji algorytmu.
+# Liczba punktów w algorytmie jest stała, do kolejnej iteracji algorytmu poprzednie punkty są zapominane.
+# Input:
+#       n_clusters - liczba centroidów
+#       chunks - dane w postaci listy chunków
+#       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
+#       validation_chunks - dane validacyjne
+#       validation_chunks_y - labele dla danych validacyjnych
+def train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_supervised, validation_chunks, validation_chunks_y, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+    # Początek pomiaru czasu
+    start_time = time.time()
+    
+    # Inicjalizacjia multi listy, która będzie zbierać potrzbne statystki
+    diagnosis_tools = DiagnosisTools()
+    diagnosis_iterations = []
+
+    centroids = init_centroids
+    # Kolejne trenowanie modelu
+    for count, data in enumerate(chunks):
+  
+        chunk_y_supervised = chunks_y[count]
+
+        centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids)
+
+        if(visualise_data):
+            plot_func(data, centroids, fuzzy_labels)
+
+        # Validacja danych
+        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_issfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+        diagnosis_tools.add_centroids(centroids)
+
+        diagnosis_iterations.append(diagnosis_iteration)
+        
+        # Czyszczenie poprzedniego outputu
+        if(visualise_data == False):
+            clear_output(wait=True)
+        
+        # Wyświetlanie paska postępu
+        print('Rozważamy obecnie chunk numer: ', count)
+        print('Liczba klastrów: ', n_clusters)
+        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+   
+    # Koniec pomiaru czasu
+    end_time = time.time()
+    
+    # Wyświetlenie czasu wykonania
+    execution_time = end_time - start_time
+    print(f"Czas wykonania: {execution_time} sekund")
+
+    return diagnosis_tools, diagnosis_iterations
+
