@@ -133,7 +133,7 @@ def plot_pca_cluster(X, cntr, fuzzy_labels, cluster_to_class, y_labels=None):
 
 
 
-def plot_pca_knn(X, y):
+def plot_pca_standard(X, y):
     # Tworzymy obiekt PCA i redukujemy do 2 wymiarów
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X)
@@ -325,3 +325,84 @@ def plot_lists_inside_lists(first_class_lists, second_class_lists, title='Plot o
     plt.ylabel('Value')
     plt.title(title)
     plt.show()
+
+
+#################################################################################
+
+                            ##Plot labeled data##
+
+#################################################################################
+
+
+# Visualise Loaded Data
+def visualise_labeled_data_all_dimensions(data, y, n_classes):
+    # Create a 2x3 grid of subplots
+    c = data.shape[1]
+    fig, axs = plt.subplots(int(c/3) + 1, 3, figsize=(15, 10))
+    
+    # Ustalamy unikalne etykiety
+    unique_labels = np.unique(y)
+    
+    # Wybieramy kolory dla każdej klasy
+    colors = plt.cm.tab10(np.linspace(0, 1, len(unique_labels)))
+    
+    for j in range(n_classes):
+        for i, label in enumerate(unique_labels):
+            # Wybieranie punktów dla danej klasy
+            ix = np.array(np.where(label == y)).reshape(-1)
+            mask = (y == label)
+            axs[int(j/3), j%3].plot(ix, data[mask, 0], color=colors[j], label=f'Klasa {label}', alpha=0.5)
+            axs[int(j/3), j%3].set_title(f'param {j}')
+
+#################################################################################
+
+                            ##Compare fcm & knn##
+
+#################################################################################
+
+
+def create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics):
+    return {
+        'Silhouette Score': silhouette_avg,
+        #'Davies-Bouldin Score': davies_bouldin_avg,
+        'Rand Score': rand,
+        'Tested fpc': fpc,
+        'Accuracy': statistics['Accuracy'],
+        'Precision': statistics['Precision'],
+        'Recall': statistics['Recall']
+    }
+
+def compare_models_statistics(statistics):
+    # Wyciągamy wszystkie nazwy modeli
+    models = list(statistics.keys())
+    
+    # Wyciągamy wszystkie nazwy metryk (przyjmujemy, że wszystkie modele mają te same metryki)
+    metrics = list(statistics[models[0]].keys())
+    
+    # Tworzymy macierz wyników
+    results = np.array([[statistics[model][metric] for model in models] for metric in metrics])
+    
+    # Ustawienia wykresu
+    x = np.arange(len(metrics))  # Pozycje na osi X
+    width = 0.15  # Szerokość słupków
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Tworzymy słupki dla każdego modelu
+    for i, model in enumerate(models):
+        ax.bar(x + i * width, results[:, i], width, label=model)
+    
+    # Dodajemy etykiety i tytuły
+    ax.set_xlabel('Metryki')
+    ax.set_ylabel('Wartość')
+    ax.set_title('Porównanie statystyk różnych modeli')
+    ax.set_xticks(x + width * (len(models) - 1) / 2)
+    ax.set_xticklabels(metrics)
+    ax.legend()
+    
+    # Wyświetlamy wykres
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+

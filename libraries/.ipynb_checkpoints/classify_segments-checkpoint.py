@@ -4,23 +4,8 @@ from sklearn.metrics.cluster import rand_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef, log_loss
 
-def merge_chunks(chunks, chunks_y):
-    # Inicjalizacja pustych list na połączone dane
-    data_set = []
-    y = []
+from libraries.process_data import merge_chunks
 
-    # Iteracja przez wszystkie segmenty i etykiety
-    for chunk, chunk_y in zip(chunks, chunks_y):
-        # Rozszerzenie listy data_set o elementy z bieżącego segmentu
-        data_set.extend(chunk)
-        # Rozszerzenie listy y o elementy z bieżących etykiet
-        y.extend(chunk_y)
-
-    # Konwersja data_set i y na numpy.array (opcjonalne)
-    data_set = np.array(data_set)
-    y = np.array(y)
-
-    return data_set, y
 
 
 def calculate_statistics(y_true, y_pred, y_proba=None):
@@ -188,7 +173,46 @@ def get_segments_clusters_labels_count_summary_labels(chunks, centroids, fuzzy_l
         
     return segment_clusters
 
+def find_most_common(lst):
+    # Tworzymy słownik do zliczania wystąpień liczb
+    counts = {}
+    
+    # Zliczanie wystąpień każdej liczby
+    for num in lst:
+        if num in counts:
+            counts[num] += 1
+        else:
+            counts[num] = 1
+    
+    # Znalezienie liczby z maksymalną liczbą wystąpień
+    most_common = max(counts, key=counts.get)
+    
+    return most_common
+    
+def get_label_of_segment_knn(chunks, cluster_membership):
 
+    most_common_elements = []
+    start = 0
+
+    # Przetwarzanie każdego segmentu
+    for chunk in chunks:
+        # Rozmiar chunku
+        chunk_size = len(chunk)
+        
+        # Wydobywamy odpowiedni segment z cluster_membership
+        segment = cluster_membership[start:start + chunk_size]
+
+        # Znajdujemy najczęściej występujący element w segmencie
+        most_common_element = find_most_common(segment)
+
+        # Dodajemy wynik do listy
+        most_common_elements.append(most_common_element)
+        
+        # Przesuwamy początek dla następnego segmentu
+        start += chunk_size
+    
+    return most_common_elements
+    
 #################################################################################
 
                             ##Exam segments##
@@ -227,18 +251,11 @@ def validate_segments_knn(chunks, chunks_y, cluster_membership):
     # Mergujemy chunki w dataset
     data, y = merge_chunks(chunks, chunks_y)
     
-    # Znajudjemy do jakiego clustra przypisany jest dany segment.
-    segment_clusters = get_segments_labels_count_single_points(chunks, centroids, cluster_membership)
-
     # Klasy segmentów
     labels = [chunk_y[0] for chunk_y in chunks_y]
 
-    # Przyporządkujemy clustry do klas na podstawie danych treningowych.
-    cluster_to_class = assign_clusters_to_classes_count_single_points(cluster_membership, centroids, y)
-
-    segment_labels = [cluster_to_class[cluster] for cluster in segment_clusters]
-    print('przynalznosc clustra do klasy', cluster_to_class)
-
+    # Labele dla segmentów
+    segment_labels = get_label_of_segment_knn(chunks, cluster_membership)
     
     return calculate_statistics(labels, segment_labels)
 

@@ -15,8 +15,6 @@ from libraries.classify_segments import validate_segments, validate_segments_knn
 
 #################################################################################
 
-
-
 def most_frequent_in_segments(array, segment_length=100):
     # Sprawdzenie czy tablica ma odpowiedni rozmiar
     if len(array) % segment_length != 0:
@@ -73,7 +71,7 @@ def merge_chunks(chunks, chunks_y):
 
 
 def valid_data_ifcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean'):
-    from libraries.IFCM import predict_data_ifcm
+    from libraries.FCM.IFCM import predict_data_ifcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
 
@@ -99,7 +97,7 @@ def valid_data_ifcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclid
     return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
 
 def valid_data_issfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean'):
-    from libraries.ISSFCM import predict_data_issfcm
+    from libraries.FCM.ISSFCM import predict_data_issfcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
 
@@ -125,7 +123,7 @@ def valid_data_issfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='eucl
     return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
 
 def valid_data_dissfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean'):
-    from libraries.DISSFCM import predict_data_dissfcm
+    from libraries.FCM.DISSFCM import predict_data_dissfcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
 
@@ -175,7 +173,7 @@ def valid_data_fcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclide
 
     return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
 
-def valid_data_knn(chunks, chunks_y, knn_model, m=2, error=0.05, metric='euclidean'):
+def valid_data_knn(chunks, chunks_y, knn_model):
 
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
@@ -194,11 +192,8 @@ def valid_data_knn(chunks, chunks_y, knn_model, m=2, error=0.05, metric='euclide
     print(f'Silhouette Score: {silhouette_avg}')
     print(f'Davies-Bouldin Score: {davies_bouldin_avg}')
     print(f'Rand Score: {rand}')
-    print(f'Tested fpc: {fpc}')
     print('Accuracy:' , statistics['Accuracy'])
     print('Precision: ', statistics['Precision'])
     print('Recall: ', statistics['Recall'])
 
-    plot_pca_knn(data_test, cluster_membership)
-    
-    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics
+    return  silhouette_avg, davies_bouldin_avg, rand, statistics
