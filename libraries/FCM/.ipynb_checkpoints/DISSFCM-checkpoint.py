@@ -418,7 +418,7 @@ def reconstruction_error(data, fuzzy_labels, centroids, m=2):
 #       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_supervised, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, plot_func=plot_pca_cluster, metric='euclidean', init_centroids=init_centroids):    
+def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_supervised, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca_cluster, metric='euclidean', init_centroids=init_centroids):    
     # Początek pomiaru czasu
     start_time = time.time()
     centroids = init_centroids
@@ -437,105 +437,95 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
     chunk_train_sizes = [len(chunk) for chunk in chunks_y]
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
     # Tablica blędów poprzednich dla każdej klasy
     V_max_prev = [0] * n_classes
     cluster_to_class_assigned = 0
-    
+
     # Kolejne trenowanie modelu
-    for count, data in enumerate(chunks):
-
-        chunk_y_supervised = chunks_y_supervised[count]
-
-        # Segment jest klasy current_class
-        current_class = chunks_y[count][0]
-        
-        # Wybieramy tylko centroidy do treningu, które łączą się z daną klasą.
-        clusters = list(clusters_for_each_class[current_class])
-
-        # Wybieramy centroidy które chcemy uczyć
-        centroids_local = centroids[clusters]
-        chunk_y_supervised_local = chunk_y_supervised[:,clusters]
-        
-        # Algorytm (di)ssfcm dla jednej iteracji, dla jednego chunk'a
-        centroids_local, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised_local, c=n_clusters, m=m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids_local)
-        
-        # Łączenie wyćwiczone centroidy z starymi
-        centroids[clusters] = centroids_local
-        chunk_y_supervised[:,clusters] = chunk_y_supervised_local
-        
-        # Predykcja algorytmu dissfcm
-        cluster_membership, fuzzy_labels, fpc = predict_data_dissfcm(X_train, centroids)
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        # Kolejne trenowanie modelu
+        for count, data in enumerate(chunks):
     
-        # błąd rekonstrukcji
-        V_max, V_max_cluster_id = reconstruction_error(X_train, fuzzy_labels, centroids, m)
-        print('V_max', V_max)
-        print('V_prevmax', V_max_prev)
-        print(clusters_for_each_class)
-        
-        # Numer iteracji pętli
-        split_while_iteration = 0
-        
-        # Pętla Split
-        while (V_max > V_max_prev[current_class] and count > 0) and split_while_iteration < 10:
-            # Funkcja Split, dzieli centroidy/generuje nowe.
-            centroids, fuzzy_labels = split_centroids(X_train, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
-            n_clusters += 1
+            chunk_y_supervised = chunks_y_supervised[count]
+    
+            # Segment jest klasy current_class
+            current_class = chunks_y[count][0]
             
-            # Aktualizowane chunks_y_train
-            y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
-            chunks_y_supervised = create_chunks(chunk_train_sizes, y_train_matrix)
-
-            # Ponowne obliczanie blędu rekonstrukcji
+            # Wybieramy tylko centroidy do treningu, które łączą się z daną klasą.
+            clusters = list(clusters_for_each_class[current_class])
+    
+            # Wybieramy centroidy które chcemy uczyć
+            centroids_local = centroids[clusters]
+            chunk_y_supervised_local = chunk_y_supervised[:,clusters]
+            
+            # Algorytm (di)ssfcm dla jednej iteracji, dla jednego chunk'a
+            centroids_local, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised_local, c=n_clusters, m=m, error=error, maxiter=1000, metric='euclidean', init_centroid=centroids_local)
+            
+            # Łączenie wyćwiczone centroidy z starymi
+            centroids[clusters] = centroids_local
+            chunk_y_supervised[:,clusters] = chunk_y_supervised_local
+            
+            # Predykcja algorytmu dissfcm
+            cluster_membership, fuzzy_labels, fpc = predict_data_dissfcm(X_train, centroids)
+        
+            # błąd rekonstrukcji
             V_max, V_max_cluster_id = reconstruction_error(X_train, fuzzy_labels, centroids, m)
-
-            # Aktualizacja numery rozaptrywanej obecnie klasy
-            for i in range(n_classes):
-                if(V_max_cluster_id in clusters_for_each_class[i]):
-                    current_class = i
-                    
-            # Aktualizujemy błąd w trakcie działania pętli (do rozważenia)
-            #V_max_prev[current_class] = V_max
+    
+            # Numer iteracji pętli
+            split_while_iteration = 0
             
-            print(f'class {current_class}: cluster: {V_max_cluster_id}')
-            print('V_max',V_max)
+            # Pętla Split
+            while (V_max > V_max_prev[current_class] and count > 0) and split_while_iteration < 10:
+                # Funkcja Split, dzieli centroidy/generuje nowe.
+                centroids, fuzzy_labels = split_centroids(X_train, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
+                n_clusters += 1
+                
+                # Aktualizowane chunks_y_train
+                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
+                chunks_y_supervised = create_chunks(chunk_train_sizes, y_train_matrix)
+    
+                # Ponowne obliczanie blędu rekonstrukcji
+                V_max, V_max_cluster_id = reconstruction_error(X_train, fuzzy_labels, centroids, m)
+    
+                # Aktualizacja numery rozaptrywanej obecnie klasy
+                for i in range(n_classes):
+                    if(V_max_cluster_id in clusters_for_each_class[i]):
+                        current_class = i
+                        
+                # Aktualizujemy błąd w trakcie działania pętli (do rozważenia)
+                #V_max_prev[current_class] = V_max
+    
+                # Zwiększamy numer iteracji pętli.
+                split_while_iteration += 1
+                   
+            # Zapamiętujemy V_max z poprzedniego chunk'a
+            V_max_prev[current_class] = V_max
+                
+            # Validacja danych
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+            diagnosis_tools.add_centroids(centroids)
+            diagnosis_iterations.append(diagnosis_iteration)
             
-            # Zwiększamy numer iteracji pętli.
-            split_while_iteration += 1
-               
-        # Zapamiętujemy V_max z poprzedniego chunk'a
-        V_max_prev[current_class] = V_max
-         
-        # Czyszczenie poprzedniego outputu
-        if(visualise_data == False):
-            clear_output(wait=True)
+            if(visualise_data == True):
+                plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned)
+                plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned, y_validation)
             
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-        diagnosis_iterations.append(diagnosis_iteration)
-        
-        if(visualise_data == True):
-            plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned)
-            plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned, y_validation)
-        
-        # Szukamy najlepszych centroidów
-        if(compare_clusters(best_centroids_statistics, statistics) == True):
-            best_centroids_statistics = statistics 
-            best_centroids = centroids
-            
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+            # Szukamy najlepszych centroidów
+            if(compare_clusters(best_centroids_statistics, statistics) == True):
+                best_centroids_statistics = statistics 
+                best_centroids = centroids
+                
+            # Wyświetlanie paska postępu
+            pbar.update(1)
 
     if(visualise_data == True):
         # Wyswielenie wyników
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
         plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned)
         popularity_of_clusters(fuzzy_labels, n_clusters)
         
@@ -549,6 +539,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
     return diagnosis_tools, diagnosis_iterations, best_centroids
 
 
+    
 #################################################################################
 
                             ##Incremental##
@@ -564,7 +555,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
 #       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
     # Początek pomiaru czasu
     start_time = time.time()
     # Inicjalizacja centroidów
@@ -584,62 +575,57 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
     chunk_train_sizes = [len(chunk) for chunk in chunks_y]
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
     V_max_prev = np.inf
     
     # Kolejne trenowanie modelu
-    for count, data in enumerate(chunks):
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        for count, data in  enumerate(chunks):
+                
+            chunk_y_supervised = chunks_y_matrix[count]
+    
+            # Algorytm ssfcm dla jednej iteracji, dla jednego chunk'a
+            centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids)
             
-        chunk_y_supervised = chunks_y_matrix[count]
-
-        # Algorytm ssfcm dla jednej iteracji, dla jednego chunk'a
-        centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids)
-        
-        # błąd rekonstrukcji
-        V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
-        
-        if(visualise_data):
-            plot_func(data, centroids, fuzzy_labels)
-            
-        while V_max > V_max_prev and count > 0:
-
-            # Funkcja Split, dzieli centroidy/generuje nowe.
-            centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=2, metric='euclidean', maxiter=100, error=0.05)
-            n_clusters += 1
-            
-            # Aktualizowane chunks_y_train
-            y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
-            chunks_y_matrix = create_chunks(chunk_train_sizes, y_train_matrix)
-
-            # Ponowne obliczanie blędu rekonstrukcji
-            V_max_prev = V_max
+            # błąd rekonstrukcji
             V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
-
-        V_max_prev = V_max
-        
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-        diagnosis_iterations.append(diagnosis_iteration)
-
-        # Szukamy najlepszych centroidów
-        if(compare_clusters(best_centroids_statistics, statistics) == True):
-            best_centroids_statistics = statistics 
-            best_centroids = centroids
             
-        # Czyszczenie poprzedniego outputu
-        if(visualise_data == False):
-            clear_output(wait=True)
+            if(visualise_data == True):
+                plot_func(data, centroids, fuzzy_labels)
+                
+            while V_max > V_max_prev and count > 0:
+    
+                # Funkcja Split, dzieli centroidy/generuje nowe.
+                centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=0.05)
+                n_clusters += 1
+                
+                # Aktualizowane chunks_y_train
+                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
+                chunks_y_matrix = create_chunks(chunk_train_sizes, y_train_matrix)
+    
+                # Ponowne obliczanie blędu rekonstrukcji
+                V_max_prev = V_max
+                V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
+    
+            V_max_prev = V_max
+            
+            # Validacja danych
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+            diagnosis_tools.add_centroids(centroids)
+            diagnosis_iterations.append(diagnosis_iteration)
+    
+            # Szukamy najlepszych centroidów
+            if(compare_clusters(best_centroids_statistics, statistics) == True):
+                best_centroids_statistics = statistics 
+                best_centroids = centroids
+    
+            # Update paska
+            pbar.update(1)
         
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
-
     if(visualise_data == True):
         # Wyswielenie wyników
         _, fuzzy_labels, fpc = predict_data_dissfcm(X_validation, centroids)

@@ -15,7 +15,7 @@ def calculate_statistics(y_true, y_pred, y_proba=None):
     stats['Accuracy'] = accuracy_score(y_true, y_pred)
 
     # Precision
-    stats['Precision'] = precision_score(y_true, y_pred, average='weighted')
+    stats['Precision'] = precision_score(y_true, y_pred, average='weighted', zero_division=0)
 
     # Recall
     stats['Recall'] = recall_score(y_true, y_pred, average='weighted')

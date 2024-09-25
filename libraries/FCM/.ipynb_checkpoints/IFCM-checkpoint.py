@@ -239,7 +239,7 @@ def _cmeans_predict0(test_data, cntr, fuzzy_labels_copy, c, m, metric):
 #       chunks - dane w postaci listy chunków
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validation_chunks, validation_chunks_y, clusters_for_each_class, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validation_chunks, validation_chunks_y, clusters_for_each_class, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
     # Początek pomiaru czasu
     start_time = time.time()
     # Inicjalizacja centroidów
@@ -256,54 +256,51 @@ def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validatio
     X_train, y_train = merge_chunks(chunks, chunks_y)
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
-    
+
     # Kolejne trenowanie modelu
-    for count, data in enumerate(chunks):
-
-        current_class = chunks_y[count][0]
-
-        # Wybieramy tylko centroidy do treningu, które łączą się z daną klasą.
-        clusters = list(clusters_for_each_class[current_class])
-        centroids_local = centroids[clusters]
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        # Kolejne trenowanie modelu
+        for count, data in enumerate(chunks):
     
-        centroids_local, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c = n_clusters, m=2, error=error, maxiter=1000, metric = metric, init_centroid=centroids_local)
-
-        # Łączenie wyćwiczone centroidy z starymi
-        centroids[clusters] = centroids_local
-
-        # Predykcja algorytmu ifcm
-        cluster_membership, fuzzy_labels, fpc = predict_data_ifcm(data, centroids)
-
-        if(visualise_data):
-            plot_func(data, centroids, fuzzy_labels)
+            current_class = chunks_y[count][0]
+    
+            # Wybieramy tylko centroidy do treningu, które łączą się z daną klasą.
+            clusters = list(clusters_for_each_class[current_class])
+            centroids_local = centroids[clusters]
         
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-        diagnosis_iterations.append(diagnosis_iteration)
-
-        # Szukamy najlepszych centroidów
-        if(compare_clusters(best_centroids_statistics, statistics) == True):
-            best_centroids_statistics = statistics 
-            best_centroids = centroids
+            centroids_local, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c = n_clusters, m=2, error=error, maxiter=1000, metric = metric, init_centroid=centroids_local)
+    
+            # Łączenie wyćwiczone centroidy z starymi
+            centroids[clusters] = centroids_local
+    
+            # Predykcja algorytmu ifcm
+            cluster_membership, fuzzy_labels, fpc = predict_data_ifcm(data, centroids)
+    
+            if(visualise_data == True):
+                plot_func(data, centroids, fuzzy_labels)
             
-        # Czyszczenie poprzedniego outputu
-        if(visualise_data == False):
-            clear_output(wait=True)
-        
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+            # Validacja danych
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+            diagnosis_tools.add_centroids(centroids)
+            diagnosis_iterations.append(diagnosis_iteration)
+    
+            # Szukamy najlepszych centroidów
+            if(compare_clusters(best_centroids_statistics, statistics) == True):
+                best_centroids_statistics = statistics 
+                best_centroids = centroids
+                
+            # Wyświetlanie paska postępu
+            pbar.update(1)
 
-    # Wyswielenie wyników
-    _, fuzzy_labels, fpc = predict_data_ifcm(X_validation, centroids)
-    plot_func(X_validation, centroids, fuzzy_labels)
-    popularity_of_clusters(fuzzy_labels, n_clusters)
+    if(visualise_data == True):
+        # Wyswielenie wyników
+        _, fuzzy_labels, fpc = predict_data_ifcm(X_validation, centroids)
+        plot_func(X_validation, centroids, fuzzy_labels)
+        popularity_of_clusters(fuzzy_labels, n_clusters)
 
     # Koniec pomiaru czasu
     end_time = time.time()
@@ -328,7 +325,7 @@ def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validatio
 #       chunks - dane w postaci listy chunków
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, validation_chunks_y, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, validation_chunks_y, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
     # Początek pomiaru czasu
     start_time = time.time()
     centroids = init_centroids
@@ -338,37 +335,33 @@ def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, valida
     diagnosis_iterations = []
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
     # Kolejne trenowanie modelu
-    for count, data in enumerate(chunks):
-        
-        centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c=n_clusters, m=m, error=error, maxiter=1000, metric = metric, init_centroid=centroids)
-
-        if(visualise_data):
-            plot_func(data, centroids, fuzzy_labels)
-
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-        diagnosis_iterations.append(diagnosis_iteration)
-
-        # Szukamy najlepszych centroidów
-        if(compare_clusters(best_centroids_statistics, statistics) == True):
-            best_centroids_statistics = statistics 
-            best_centroids = centroids
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        # Kolejne trenowanie modelu
+        for count, data in enumerate(chunks):
             
-        # Czyszczenie poprzedniego outputu
-        if(visualise_data == False):
-            clear_output(wait=True)
-        
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+            centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c=n_clusters, m=m, error=error, maxiter=1000, metric = metric, init_centroid=centroids)
+    
+            if(visualise_data == True):
+                plot_func(data, centroids, fuzzy_labels)
+    
+            # Validacja danych
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+            diagnosis_tools.add_centroids(centroids)
+            diagnosis_iterations.append(diagnosis_iteration)
+    
+            # Szukamy najlepszych centroidów
+            if(compare_clusters(best_centroids_statistics, statistics) == True):
+                best_centroids_statistics = statistics 
+                best_centroids = centroids
+                
+            # Wyświetlanie paska postępu
+            pbar.update(1)
         
     # Koniec pomiaru czasu
     end_time = time.time()
@@ -394,7 +387,7 @@ def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, valida
 #       chunks - dane w postaci listy chunków
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation_chunks, validation_chunks_y,  m=2, error=0.05, visualise_data=False, plot_func=plot_pca, metric = 'euclidean', init_centroids=init_centroids):    
+def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation_chunks, validation_chunks_y,  m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric = 'euclidean', init_centroids=init_centroids):    
     # Początek pomiaru czasu
     start_time = time.time()
     centroids = init_centroids
@@ -403,7 +396,7 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     diagnosis_iterations = []
     
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
@@ -415,7 +408,7 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     if(visualise_data):
         visualize_all(data, centroids, fuzzy_labels)
         
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, print_statistics)
     diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
     diagnosis_tools.add_centroids(centroids)
 
@@ -423,39 +416,35 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     if(compare_clusters(best_centroids_statistics, statistics) == True):
         best_centroids_statistics = statistics 
         best_centroids = centroids
-            
+
     # Kolejne trenowanie modelu
-    for count, chunk in enumerate(chunks):
-        # Pomijamy pierwszy chunk, bo już go uwzględniliśmy
-        if count == 0:
-            continue
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        # Kolejne trenowanie modelu
+        for count, chunk in enumerate(chunks):
+            # Pomijamy pierwszy chunk, bo już go uwzględniliśmy
+            if count == 0:
+                continue
+                
+            data = np.vstack((data, chunk))
             
-        data = np.vstack((data, chunk))
-        
-        centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c=n_clusters, m=m, error=error, maxiter=1000, metric = metric, init_centroid=centroids)
-
-        if(visualise_data):
-            plot_func(data, centroids, fuzzy_labels)
-
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-        diagnosis_iterations.append(diagnosis_iteration)
-
-        # Szukamy najlepszych centroidów
-        if(compare_clusters(best_centroids_statistics, statistics) == True):
-            best_centroids_statistics = statistics 
-            best_centroids = centroids
-            
-        if(visualise_data == False):
-            # Czyszczenie poprzedniego outputu
-            clear_output(wait=True)
-        
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
+            centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c=n_clusters, m=m, error=error, maxiter=1000, metric = metric, init_centroid=centroids)
+    
+            if(visualise_data == True):
+                plot_func(data, centroids, fuzzy_labels)
+    
+            # Validacja danych
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
+            diagnosis_tools.add_centroids(centroids)
+            diagnosis_iterations.append(diagnosis_iteration)
+    
+            # Szukamy najlepszych centroidów
+            if(compare_clusters(best_centroids_statistics, statistics) == True):
+                best_centroids_statistics = statistics 
+                best_centroids = centroids
+                
+            # Wyświetlanie paska postępu
+            pbar.update(1)
         
     # Koniec pomiaru czasu
     end_time = time.time()
@@ -466,77 +455,3 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     
     return diagnosis_tools, diagnosis_iterations, best_centroids
 
-#################################################################################
-
-                        ##Incremental extending window data##
-
-#################################################################################
-
-# Funkcja liczy centroidy dla kolejnych chunków, centroidy są przekazywane jako parametr inicjalizacyjny dla kolejnych iteracji algorytmu.
-# Z kazdą iteracją algorytmu dodawane sa kolejne chunki (punkty danych) do pewnej określonej wielkości, po przekroczeniu tej wielkości dane są aktualizowane.
-# Input:
-#       n_clusters - liczba centroidów
-#       chunks - dane w postaci listy chunków
-#       validation_chunks - dane validacyjne
-#       validation_chunks_y - labele dla danych validacyjnych
-def train_incremental_fuzzy_cmeans_extending_window_data(n_clusters, chunks, validation_chunks, validation_chunks_y, m=2, error=0.05, visualise_data=False, plot_func=plot_pca, window_size=5, metric = 'euclidean', init_centroids=init_centroids):    
-    # Początek pomiaru czasu
-    start_time = time.time()
-    
-    # Inicjalizacjia multi listy, która będzie zbierać potrzbne statystki
-    diagnosis_tools = DiagnosisTools()
-    diagnosis_iterations = []
-
-    data = chunks[0]
-    centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(data, c=n_clusters, m=m, error=error, maxiter=1000, metric = metric, init_centroid=init_centroids)
-
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error)
-    diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-    diagnosis_tools.add_centroids(centroids)
-    diagnosis_iterations.append(diagnosis_iteration)
-    
-    # Wizualizacja dla pierwszej iteracji
-    if(visualise_data):
-        visualize_all(data, centroids, fuzzy_labels)
-
-    data = [data]
-    # Kolejne trenowanie modelu
-    for count, chunk in enumerate(chunks):
-        # Pomijamy pierwszy chunk, bo już go uwzględniliśmy
-        if count == 0:
-            continue
-            
-        data.append(chunk)
-
-        if len(data) > window_size:
-            del data[0]
-        
-        centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = incremental_fuzzy_cmeans(np.concatenate(data), c=n_clusters, m=m, error=error, maxiter=1000, metric=metric, init_centroid=centroids)
-
-        if(visualise_data):
-            plot_func(data, centroids, fuzzy_labels)
-
-        # Validacja danych
-        silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric)
-        diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
-        diagnosis_tools.add_centroids(centroids)
-
-        diagnosis_iterations.append(diagnosis_iteration)
-        
-        if(visualise_data == False):
-            # Czyszczenie poprzedniego outputu
-            clear_output(wait=True)
-        
-        # Wyświetlanie paska postępu
-        print('Rozważamy obecnie chunk numer: ', count)
-        print('Liczba klastrów: ', n_clusters)
-        tqdm(range(len(chunks)), desc="Processing", total=len(chunks), initial=count + 1)
-
-    # Koniec pomiaru czasu
-    end_time = time.time()
-    
-    # Wyświetlenie czasu wykonania
-    execution_time = end_time - start_time
-    print(f"Czas wykonania: {execution_time} sekund")
-    
-    return diagnosis_tools, diagnosis_iterations

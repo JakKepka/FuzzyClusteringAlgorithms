@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 import random
 from tqdm import tqdm
 import numpy as np
-
+import math
 #################################################################################
 
                             ##Dimentional Reduction Plots##
@@ -62,7 +62,7 @@ def plot_pca(X, cntr, fuzzy_labels):
     data_type = simple_plot(X, cntr, cluster_labels, 'pca')
 
     n_clusters = cntr.shape[0]
-    print(n_clusters)
+
     # Redukcja wymiarowości za pomocą PCA do 2 wymiarów
     if data_type:
         pca = PCA(n_components=2)
@@ -94,7 +94,6 @@ def plot_pca_cluster(X, cntr, fuzzy_labels, cluster_to_class, y_labels=None):
     data_type = simple_plot(X, cntr, cluster_labels, 'pca')
 
     n_clusters = cntr.shape[0]
-    print(n_clusters)
 
     # Redukcja wymiarowości za pomocą PCA do 2 wymiarów
     if data_type:
@@ -270,9 +269,6 @@ def overview_plot(diagnosis_chunk, diagnosis_iterations, n_centroids_history=5):
     print('Historia statystyk ze względu na kolejne chunki')
     diagnosis_chunk.plot_statistics('Historia danych ze względu na kolejne chunki')
     
-    print('Historia danych wewnatrz iteracji dla pierwszego chunka')
-    diagnosis_iterations[0].plot_lists('Historia danych wewnatrz iteracji dla pierwszego chunka')
-    
     print('Historia danych ze względu na kolejne chunki + historia rozwoju wewnątrz oblczeń dla pojedyńczego chunku')
     chunk_lists, iter_lists, iter_lists_concatenate = prepare_diagnosis_data_for_plotting(diagnosis_chunk, diagnosis_iterations)
     plot_lists_inside_lists(chunk_lists, iter_lists, 'Historia danych ze względu na kolejne chunki + historia rozwoju wewnątrz oblczeń dla pojedyńczego chunku')
@@ -335,10 +331,10 @@ def plot_lists_inside_lists(first_class_lists, second_class_lists, title='Plot o
 
 
 # Visualise Loaded Data
-def visualise_labeled_data_all_dimensions(data, y, n_classes):
+def visualise_labeled_data_all_dimensions(data, y, dim):
     # Create a 2x3 grid of subplots
     c = data.shape[1]
-    fig, axs = plt.subplots(int(c/3) + 1, 3, figsize=(15, 10))
+    fig, axs = plt.subplots(int(math.ceil(dim/3)) , 3, figsize=(15, 10))
     
     # Ustalamy unikalne etykiety
     unique_labels = np.unique(y)
@@ -346,12 +342,12 @@ def visualise_labeled_data_all_dimensions(data, y, n_classes):
     # Wybieramy kolory dla każdej klasy
     colors = plt.cm.tab10(np.linspace(0, 1, len(unique_labels)))
     
-    for j in range(n_classes):
+    for j in range(dim):
         for i, label in enumerate(unique_labels):
             # Wybieranie punktów dla danej klasy
             ix = np.array(np.where(label == y)).reshape(-1)
             mask = (y == label)
-            axs[int(j/3), j%3].plot(ix, data[mask, 0], color=colors[j], label=f'Klasa {label}', alpha=0.5)
+            axs[int(j/3), j%3].plot(ix, data[mask, j], color=colors[label], label=f'Klasa {label}', alpha=0.5)
             axs[int(j/3), j%3].set_title(f'param {j}')
 
 #################################################################################
