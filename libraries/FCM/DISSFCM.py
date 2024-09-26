@@ -6,13 +6,268 @@ from tqdm import tqdm
 from IPython.display import clear_output
 
 # Plot functions
-from libraries.plot_functions import plot_pca, plot_pca_cluster
+from libraries.plot_functions import plot_pca, plot_pca_cluster, custom_plot
 from libraries.valid_data import valid_data_dissfcm
 from libraries.chunks import merge_chunks
 from libraries.semi_supervised_matrix import upload_semi_supervised_matrix
 from libraries.chunks import create_chunks
 from libraries.clusters import count_points_for_clusters, sum_probability_for_clusters, popularity_of_clusters
 from libraries.clusters import compare_clusters
+#################################################################################
+
+                        ##Glosowanie turowe##
+
+
+#################################################################################
+from collections import Counter
+from scipy import stats
+from libraries.classify_segments import validate_segments, validate_segments_knn, calculate_statistics
+
+def assign_clusters_to_classes(fuzzy_labels, centroids, y, n_classes):
+    # Zliczam pierwsze punkty do jakich klas należą, następnie dopiero patrzę na segmenty.
+    cluster_membership = np.argmax(fuzzy_labels, axis=0)
+
+    count_points = np.zeros((centroids.shape[0], n_classes))
+    
+    for i, label in enumerate(cluster_membership):
+        count_points[label, y[i]] += 1
+
+    # Zwracamy tablicę z przyporządkowanymi klasami dla każdego clustra.
+    return np.argmax(count_points, axis=1)
+
+
+def assign_class_to_points(fuzzy_labels, cluster_to_class):
+    cluster_membership = np.argmax(fuzzy_labels, axis=0)
+
+    result = np.zeros(len(cluster_membership), dtype=fuzzy_labels.dtype)
+
+    result[:] = cluster_to_class[cluster_membership]
+    return result
+
+
+def classify_points(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None):
+    # przynależności wszystkich punktów ze zbioru treningowego do centroidów
+    fuzzy_labels_trained = create_labels(trained_x, centroids, metric, m)
+    
+    # przynależność klastrów do klas
+    cluster_to_class = assign_clusters_to_classes(fuzzy_labels_trained, centroids, trained_y, n_classes)
+    
+    # przynależność wszystkich punktów ze zbioru walidacyjnego do centroidów
+    fuzzy_labels_val = create_labels(validation_x, validation_y.T ,centroids, metric, m)
+
+    validation_classified = None
+    # wyznaczanie klas na podstawie przynależności do centroidów dla zbioru walidacyjnego
+    if classify_whole_segment:
+        validation_classified = []
+
+        for chunk in validation_x_chunked:
+            fuzzy_labels_chunk = create_labels(chunk, centroids, metric, m)
+            chunk_classified = assign_class_to_points(fuzzy_labels_chunk, cluster_to_class)
+            mode_value, count = stats.mode(chunk_classified)
+            
+            validation_classified.append(np.full(chunk_classified.shape, mode_value))
+        validation_classified = np.concatenate(validation_classified)  
+    else:
+        validation_classified = assign_class_to_points(fuzzy_labels_val, cluster_to_class)
+    
+    return validation_classified
+    
+
+def majority_vote_with_elimination(class_vectors, n_classes):
+    """
+    Przeprowadza głosowanie większościowe z eliminacją najmniej popularnych klas.
+    
+    Args:
+    class_vectors (list of list): Lista wektorów indeksów klas uporządkowanych według przynależności
+                                  dla każdego punktu walidacyjnego.
+    
+    Returns:
+    int: Ostateczna wybrana klasa po głosowaniu.
+    """
+    counter = 0
+    #print(class_vectors)
+    mark_deletion = np.zeros(n_classes)
+    while True:
+        # Zliczanie pierwszych klas (najbardziej przynależnych) dla wszystkich punktów
+        first_choices = [classes[0] for classes in class_vectors if classes.size > 0]
+        class_counter = Counter(first_choices)
+        #print("class_vectors", class_vectors)
+        #print("first_choices", first_choices)
+        #return first_choices
+
+        #print("tura: ", counter)    
+        #print("first_choices: ", first_choices)
+        #print("class_counter: ", class_counter)
+        #return first_choices
+        # Sprawdzenie, czy mamy jedną dominującą klasę
+        if len(class_counter) == 1:
+            return first_choices  # Zwróć dominującą klasę
+        
+        # Znajdź najmniej popularną klasę (lub klasy, jeśli są remisowe)
+        min_count = min(class_counter.values())
+        least_common_classes = [cls for cls, count in class_counter.items() if count == min_count]
+
+        # Dla każdej klasy do usunięcia
+        for cls_to_remove in least_common_classes:
+            mark_deletion[cls_to_remove] = 1
+            #print("Klasa do usuniecia: ", cls_to_remove)
+            # Przejdź przez każdy punkt walidacyjny
+            for i, classes in enumerate(class_vectors):
+                # Jeśli pierwsza klasa jest tą do usunięcia, usuń ją
+                if classes.size > 0 and mark_deletion[classes[0]] == 1:
+                    #print("Usuwam: ", classes[0])
+                    class_vectors[i] = np.delete(classes, 0)
+
+        # Sprawdź, czy wszystkie wektory klas zostały wyeliminowane
+        if all(classes.size == 1 for classes in class_vectors):
+            return first_choices  # Zwróć None, jeśli wszystkie klasy zostały wyeliminowane
+
+        if counter >= 3:
+            # Zwróć pierwszą klasę, która pozostała na końcu eliminacji
+            return first_choices
+        
+        counter += 1
+def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_class ,n_classes, centroids):
+    """
+    Klasyfikuje dane walidacyjne na podstawie k najbliższych sąsiadów z użyciem macierzy przynależności.
+    
+    Args:
+    val_matrix (numpy.ndarray): Macierz przynależności danych walidacyjnych, rozmiar [n_val x K].
+    train_matrix (numpy.ndarray): Macierz przynależności danych treningowych, rozmiar [n_train x K].
+    k (int): Liczba najbliższych sąsiadów do znalezienia.
+    prototype_to_class (list): Lista mapująca każdy prototyp na odpowiednią klasę.
+    
+    Returns:
+    list: Lista sklasyfikowanych klas dla każdej serii czasowej z walidacji.
+    """
+
+    n_val = val_matrix.shape[1]
+    n_train = train_matrix.shape[1]
+    
+    classified_labels = []
+    
+    for i in range(n_val):
+        val_series = val_matrix[:, i]
+        #print("val_series ", val_series)
+        # Oblicz odległość euklidesową między i-tym rzędem w val_matrix a każdym rzędem w train_matrix
+        v_expanded = val_series[:, np.newaxis]  # Kształt: (8, 1)
+
+        # Oblicz różnicę pomiędzy punktami a wektorem
+        diff = train_matrix - v_expanded
+        
+        # Oblicz dystans Euklidesowy
+        distances = np.sqrt(np.sum(diff**2, axis=0))
+        
+        # Znajdź indeksy k najmniejszych wartości (najbliższych sąsiadów)
+        k_nearest_indices = np.argsort(distances)[:k]
+        
+        class_to_max_prototype = np.zeros(n_classes)
+        
+        distances = np.linalg.norm(centroids - v_expanded, axis=1)
+        # for idx in k_nearest_indices:
+        #     # Sortuj prototypy według wartości przynależności malejąco dla danego sąsiada
+        #     sorted_prototypes = np.argsort(train_matrix[:, idx])[::-1]
+        sorted_prototypes = np.argsort(val_series)[::-1]
+    
+        for prototype_idx in sorted_prototypes:
+                # Mapuj prototyp na odpowiednią klasę
+                mapped_class = prototype_to_class[prototype_idx]
+                
+                # Jeśli klasa nie była jeszcze dodana lub obecny prototyp ma większą przynależność, zaktualizuj
+                if class_to_max_prototype[mapped_class] == 0 or class_to_max_prototype[mapped_class] < val_series[prototype_idx]:
+                    class_to_max_prototype[mapped_class] = val_series[prototype_idx]
+                else:
+                    break  # Ponieważ sortowanie jest malejące, dalsze prototypy będą miały mniejszą przynależność
+        
+        sorted_class_indices = np.argsort(class_to_max_prototype)[::-1]  
+        # Uzyskaj indeksy centroidów posortowane według odległości
+        #print("val_series ", sorted_class_indices)
+
+        # sorted_indices = np.argsort(val_series)
+        # # for idx in k_nearest_indices:
+        # #     # Sortuj prototypy według wartości przynależności malejąco dla danego sąsiada
+        # #     sorted_prototypes = np.argsort(train_matrix[:, idx])[::-1]
+            
+        # for prototype_idx in sorted_indices:
+        #         # Mapuj prototyp na odpowiednią klasę
+        #         mapped_class = prototype_to_class[prototype_idx]
+                
+        #         # Jeśli klasa nie była jeszcze dodana lub obecny prototyp ma większą przynależność, zaktualizuj
+        #         if class_to_max_prototype[mapped_class] == 0 or class_to_max_prototype[mapped_class] < val_series[prototype_idx]:
+        #             class_to_max_prototype[mapped_class] = val_series[prototype_idx]
+        #         else:
+        #             break  # Ponieważ sortowanie jest malejące, dalsze prototypy będą miały mniejszą przynależność
+        
+        #sorted_class_indices = np.argsort(class_to_max_prototype)[::-1]       
+        # Zlicz klasy k najbliższych sąsiadów
+        #class_counter = Counter(k_nearest_classes)
+        
+        # # Zwróć klasy uporządkowane od najczęstszej do najmniej częstej
+        # sorted_classes = [cls for cls, count in class_counter.most_common()]
+        #print("sorted_class_indices")
+        #print(sorted_class_indices)
+        classified_labels.append(sorted_class_indices)
+    
+    # Przeprowadź głosowanie większościowe z eliminacją
+    final_class = majority_vote_with_elimination(classified_labels, n_classes)
+    
+    return final_class
+
+
+def classify_points_knn_eliminate_minor_class(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None, validation_y_chunked = None, clusters_for_each_class = None, f_t = None):
+    # przynależności wszystkich punktów ze zbioru treningowego do centroidów
+    
+    #fuzzy_labels_trained = create_labels(trained_x, trained_y.T, centroids, metric, m)
+    _, fuzzy_labels_trained, _ = predict_data_dissfcm(trained_x, centroids)
+    if f_t is not None:
+        fuzzy_labels_trained = f_t
+    # przynależność klastrów do klas
+    #cluster_to_class = assign_clusters_to_classes(fuzzy_labels_trained, centroids, trained_y, n_classes)
+    max_cluster = len(centroids)
+    
+    # # Inicjalizacja tablicy, gdzie pod indeksem klastra będzie klasa
+    cluster_to_class = np.full(max_cluster, -1)  # Inicjalizujemy wartości np. -1 dla niezdefiniowanych
+    
+    for class_idx, cluster_range in clusters_for_each_class.items():
+        for cluster in cluster_range:
+            cluster_to_class[cluster] = class_idx
+    k = 7
+    # przynależność wszystkich punktów ze zbioru walidacyjnego do centroidów
+    #fuzzy_labels_val = create_labels_simple(validation_x ,centroids, metric, m)
+    _, fuzzy_labels_val, _ = predict_data_dissfcm(validation_x, centroids)
+
+
+    validation_classified = None
+    validation_classified_chunks_before_voting = []
+    validation_classified_chunks_majority = []
+    # wyznaczanie klas na podstawie przynależności do centroidów dla zbioru walidacyjnego
+    #if classify_whole_segment:
+    validation_classified_chunks_majority = []
+
+    itr = 0
+    #print("fuzzy_labels_val: ", fuzzy_labels_val)
+    for chunk in validation_x_chunked:
+        _, fuzzy_labels_chunk, _ = predict_data_dissfcm(chunk, centroids)
+        #print("fuzzy_labels_chunk: ", fuzzy_labels_chunk)
+
+        chunk_classified = classify_with_knn_eliminate_minor(fuzzy_labels_trained, fuzzy_labels_chunk, k, cluster_to_class, n_classes, centroids)  
+        #print("wynik glosowania")
+        #print(chunk_classified)
+        if chunk_classified is not None:
+            mode_value, count = stats.mode(chunk_classified)
+            
+            #print("chunk_classified: ",chunk_classified)  
+            majority = np.full(len(chunk), mode_value)
+                
+            validation_classified_chunks_majority.append(majority)
+            validation_classified_chunks_before_voting.append(chunk_classified)
+            
+    validation_classified = np.concatenate(validation_classified_chunks_majority[:])  
+    #validation_classified_chunks_before_voting = np.concatenate(validation_classified_chunks_before_voting)  
+    #else:
+    #    validation_classified = classify_with_knn(fuzzy_labels_trained, fuzzy_labels_val, k ,cluster_to_class, n_classes)
+    return validation_classified, validation_classified_chunks_before_voting, validation_classified_chunks_majority, cluster_to_class ,fuzzy_labels_val
+    
 #################################################################################
 
                             ##Normalizacja##
@@ -356,7 +611,7 @@ def split_centroids(data, fuzzy_labels, centroids, spliting_cluster, m=2, metric
     # Zamieniamy tablicę przyporządkowań nową, zaktualizowną.
     new_fuzzy_labels = exchange_columns(fuzzy_labels, spliting_cluster, v)
 
-    return new_centroids, new_fuzzy_labels.T
+    return z, new_centroids, new_fuzzy_labels.T
 
 
 #################################################################################
@@ -399,7 +654,7 @@ def reconstruction_error(data, fuzzy_labels, centroids, m=2):
         V[i] =  np.sum(np.linalg.norm(data[label] - normalized_data[label], axis=1)**m) / q
 
     # Zwracamy nawiększą wartość i indeks clustra
-    return np.max(V), np.argmax(V)
+    return V, np.max(V), np.argmax(V)
 
 
 
@@ -470,31 +725,43 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             chunk_y_supervised[:,clusters] = chunk_y_supervised_local
             
             # Predykcja algorytmu dissfcm
-            cluster_membership, fuzzy_labels, fpc = predict_data_dissfcm(X_train, centroids)
+            _, fuzzy_labels, _ = predict_data_dissfcm(data, centroids)
         
             # błąd rekonstrukcji
-            V_max, V_max_cluster_id = reconstruction_error(X_train, fuzzy_labels, centroids, m)
-    
+            V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
+            V = V[clusters]
+            V_max = np.max(V)
+            V_max_cluster_id = np.argmax(V)    
             # Numer iteracji pętli
             split_while_iteration = 0
-            
+            fuzzy_labels_local = fuzzy_labels[clusters, :]
+   
             # Pętla Split
-            while (V_max > V_max_prev[current_class] and count > 0) and split_while_iteration < 10:
+            while (V_max > V_max_prev[current_class] and count > 0 and abs(V_max - V_max_prev[current_class]) > 2 ) and split_while_iteration < 10:
                 # Funkcja Split, dzieli centroidy/generuje nowe.
-                centroids, fuzzy_labels = split_centroids(X_train, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
+                z, centroids_updated, fuzzy_labels = split_centroids(data, fuzzy_labels_local, centroids[clusters], V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
                 n_clusters += 1
-                
-                # Aktualizowane chunks_y_train
-                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
+
+                centroids = np.vstack((centroids[: clusters[V_max_cluster_id]], z, centroids[ clusters[V_max_cluster_id]+1:]))
+          
+                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, clusters[V_max_cluster_id], clusters_for_each_class, n_clusters, injection)
+                     
+
                 chunks_y_supervised = create_chunks(chunk_train_sizes, y_train_matrix)
-    
+                clusters = list(clusters_for_each_class[current_class])
+                
+                _, fuzzy_labels, _ = predict_data_dissfcm(data, centroids)
+                fuzzy_labels_local = fuzzy_labels[clusters, :]
+
                 # Ponowne obliczanie blędu rekonstrukcji
-                V_max, V_max_cluster_id = reconstruction_error(X_train, fuzzy_labels, centroids, m)
-    
+                V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
+                V = V[clusters]
+                V_max = np.max(V)
+                V_max_cluster_id = np.argmax(V)   
                 # Aktualizacja numery rozaptrywanej obecnie klasy
-                for i in range(n_classes):
-                    if(V_max_cluster_id in clusters_for_each_class[i]):
-                        current_class = i
+                # for i in range(n_classes):
+                #     if(V_max_cluster_id in clusters_for_each_class[i]):
+                #         current_class = i
                         
                 # Aktualizujemy błąd w trakcie działania pętli (do rozważenia)
                 #V_max_prev[current_class] = V_max
@@ -507,6 +774,10 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
                 
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+
+            validation_y_predicted, validation_y_before_major, validation_y_chunked, cluster_to_class, fuzzy_labels_val =         classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), np.concatenate(chunks_y[:]),np.concatenate(validation_chunks[:]), np.concatenate(validation_chunks_y[:]), centroids, 'euclidean', m, 4, True, validation_chunks, clusters_for_each_class = clusters_for_each_class)
+            
+            statistics = calculate_statistics(np.concatenate(validation_chunks_y[:]), validation_y_predicted)  
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
             diagnosis_iterations.append(diagnosis_iteration)
@@ -514,6 +785,8 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             if(visualise_data == True):
                 plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned)
                 plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned, y_validation)
+                custom_plot(np.concatenate(validation_chunks[:]), centroids, validation_y_predicted, cluster_to_class, fuzzy_labels)
+
             
             # Szukamy najlepszych centroidów
             if(compare_clusters(best_centroids_statistics, statistics) == True):
@@ -591,7 +864,7 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
             centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids)
             
             # błąd rekonstrukcji
-            V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
+            V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
             
             if(visualise_data == True):
                 plot_func(data, centroids, fuzzy_labels)
@@ -599,7 +872,7 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
             while V_max > V_max_prev and count > 0:
     
                 # Funkcja Split, dzieli centroidy/generuje nowe.
-                centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=0.05)
+                z, centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=0.05)
                 n_clusters += 1
                 
                 # Aktualizowane chunks_y_train
@@ -608,12 +881,16 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
     
                 # Ponowne obliczanie blędu rekonstrukcji
                 V_max_prev = V_max
-                V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
+                V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
     
             V_max_prev = V_max
             
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+
+
+
+
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
             diagnosis_iterations.append(diagnosis_iteration)

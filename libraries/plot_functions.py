@@ -130,7 +130,65 @@ def plot_pca_cluster(X, cntr, fuzzy_labels, cluster_to_class, y_labels=None):
         plt.legend()
         plt.show()
 
+def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels):
+    cluster_labels = np.argmax(fuzzy_labels, axis=0)
+    # Sprawdzamy czy można redukować wymiar, czy wystarczy narysować wykres bez zmian
+    #data_type = simple_plot(X, cntr, cluster_labels, 'pca')
 
+    n_clusters = cntr.shape[0]
+    print(n_clusters)
+    # Redukcja wymiarowości za pomocą PCA do 2 wymiarów
+    if True:
+        pca = PCA(n_components=2)
+        data_pca = pca.fit_transform(X)
+        description = []
+        scatter_plots = []
+
+        # Redukcja wymiarowości centrów klastrów
+        cntr_pca = pca.transform(cntr)
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+
+        # for i in range(n_clusters):
+        #     plt.scatter(data_pca[cluster_labels == i, 0], data_pca[cluster_labels == i, 1], label=f'Cluster {i+1}')
+        colors = plt.cm.get_cmap('viridis', 4)
+        #print("fuzzy_labels, ", fuzzy_labels)
+
+        # for i in range(validation_y.shape[0]):
+        #     validation_y[i] = cluster_to_class[validation_y[i]]
+
+        #print("klasy, ", validation_y)
+        # Rysowanie danych dla każdej klasy osobno
+        for class_idx in range(4):
+            #print("---------------klasa-----------", class_idx)
+            class_mask = validation_y == class_idx
+            for i in range(fuzzy_labels.shape[1]):
+                if class_mask[i]:  # Sprawdzamy, czy maska dla tego indeksu jest prawdziwa
+                    #for value in fuzzy_labels_val[:, i]:
+                    description.append(fuzzy_labels[:, i])
+                    #print("labele: ",fuzzy_labels[:, i] )
+                    #print("klasa: ", cluster_to_class[np.argmax(fuzzy_labels[:, i])])
+
+    
+            scatter = ax.scatter(data_pca[class_mask, 0], data_pca[class_mask, 1], 
+                       color=colors(class_idx), label=f'Klasa {class_idx}')
+            scatter_plots.append(scatter)
+    
+        
+
+        if cluster_to_class is not None:
+            for idx, (centroid, class_idx) in enumerate(zip(cntr_pca, cluster_to_class)):
+                ax.scatter(centroid[0], centroid[1], 
+                           color=colors(class_idx), edgecolor='black', 
+                           marker='o', s=200, linewidths=2, label=f'Centroid {idx} (Klasa {class_idx})')
+
+        # Dodanie centrów klastrów do wykresu
+        plt.title('Fuzzy C-Means Clustering (PCA Reduced Data)')
+        ax.scatter(cntr_pca[:, 0], cntr_pca[:, 1], marker='x', s=200, c='black', label='PCA Cluster Centers')
+        plt.xlabel('Principal Component 1')
+        plt.ylabel('Principal Component 2')
+        plt.legend()
+        plt.show()
 
 def plot_pca_standard(X, y):
     # Tworzymy obiekt PCA i redukujemy do 2 wymiarów
