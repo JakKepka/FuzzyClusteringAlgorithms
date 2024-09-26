@@ -334,7 +334,7 @@ def train_local_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chu
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
 
-    return diagnosis_tools, diagnosis_iterations, best_centroids
+    return diagnosis_tools, diagnosis_iterations, best_centroids, best_centroids_statistics
     
 #################################################################################
 
@@ -397,5 +397,5 @@ def train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y,
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
 
-    return diagnosis_tools, diagnosis_iterations, best_centroids
+    return diagnosis_tools, diagnosis_iterations, best_centroids, best_centroids_statistics
 

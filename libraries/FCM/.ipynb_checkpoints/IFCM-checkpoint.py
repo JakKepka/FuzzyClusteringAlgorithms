@@ -309,7 +309,7 @@ def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validatio
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
     
-    return diagnosis_tools, diagnosis_iterations, best_centroids
+    return diagnosis_tools, diagnosis_iterations, best_centroids, best_centroids_statistics
 
 #################################################################################
 
@@ -370,7 +370,7 @@ def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, valida
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
     
-    return diagnosis_tools, diagnosis_iterations, best_centroids
+    return diagnosis_tools, diagnosis_iterations, best_centroids, best_centroids_statistics
 
 
 #################################################################################
@@ -453,5 +453,5 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
     
-    return diagnosis_tools, diagnosis_iterations, best_centroids
+    return diagnosis_tools, diagnosis_iterations, best_centroids, best_centroids_statistics
 
