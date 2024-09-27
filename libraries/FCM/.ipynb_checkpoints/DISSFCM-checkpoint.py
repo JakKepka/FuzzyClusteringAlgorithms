@@ -214,7 +214,7 @@ def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_
     return final_class
 
 
-def classify_points_knn_eliminate_minor_class(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None, validation_y_chunked = None, clusters_for_each_class = None, f_t = None):
+def classify_points_knn_eliminate_minor_class(trained_x, centroids, n_classes, validation_x_chunked = None, clusters_for_each_class = None, f_t = None):
     
     _, fuzzy_labels_trained, _ = predict_data_dissfcm(trained_x, centroids)
     if f_t is not None:
@@ -753,8 +753,8 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
 
-            validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), np.concatenate(chunks_y[:]),np.concatenate(validation_chunks[:]), np.concatenate(validation_chunks_y[:]), centroids, 'euclidean', m, 4, True, validation_chunks, clusters_for_each_class = clusters_for_each_class)
-            
+            validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), centroids, n_classes, validation_chunks, clusters_for_each_class = clusters_for_each_class)
+
             statistics = calculate_statistics(np.concatenate(validation_chunks_y[:]), validation_y_predicted)  
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
