@@ -85,20 +85,12 @@ def majority_vote_with_elimination(class_vectors, n_classes):
     int: Ostateczna wybrana klasa po głosowaniu.
     """
     counter = 0
-    #print(class_vectors)
     mark_deletion = np.zeros(n_classes)
     while True:
         # Zliczanie pierwszych klas (najbardziej przynależnych) dla wszystkich punktów
         first_choices = [classes[0] for classes in class_vectors if classes.size > 0]
         class_counter = Counter(first_choices)
-        #print("class_vectors", class_vectors)
-        #print("first_choices", first_choices)
-        #return first_choices
 
-        #print("tura: ", counter)    
-        #print("first_choices: ", first_choices)
-        #print("class_counter: ", class_counter)
-        #return first_choices
         # Sprawdzenie, czy mamy jedną dominującą klasę
         if len(class_counter) == 1:
             return first_choices  # Zwróć dominującą klasę
@@ -110,12 +102,9 @@ def majority_vote_with_elimination(class_vectors, n_classes):
         # Dla każdej klasy do usunięcia
         for cls_to_remove in least_common_classes:
             mark_deletion[cls_to_remove] = 1
-            #print("Klasa do usuniecia: ", cls_to_remove)
-            # Przejdź przez każdy punkt walidacyjny
             for i, classes in enumerate(class_vectors):
                 # Jeśli pierwsza klasa jest tą do usunięcia, usuń ją
                 if classes.size > 0 and mark_deletion[classes[0]] == 1:
-                    #print("Usuwam: ", classes[0])
                     class_vectors[i] = np.delete(classes, 0)
 
         # Sprawdź, czy wszystkie wektory klas zostały wyeliminowane
@@ -127,14 +116,12 @@ def majority_vote_with_elimination(class_vectors, n_classes):
             return first_choices
         
         counter += 1
-def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_class ,n_classes, centroids):
+def classify_segment(val_matrix, prototype_to_class ,n_classes, centroids):
     """
-    Klasyfikuje dane walidacyjne na podstawie k najbliższych sąsiadów z użyciem macierzy przynależności.
+    Klasyfikuje segment danych
     
     Args:
     val_matrix (numpy.ndarray): Macierz przynależności danych walidacyjnych, rozmiar [n_val x K].
-    train_matrix (numpy.ndarray): Macierz przynależności danych treningowych, rozmiar [n_train x K].
-    k (int): Liczba najbliższych sąsiadów do znalezienia.
     prototype_to_class (list): Lista mapująca każdy prototyp na odpowiednią klasę.
     
     Returns:
@@ -142,33 +129,16 @@ def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_
     """
 
     n_val = val_matrix.shape[1]
-    n_train = train_matrix.shape[1]
     
     classified_labels = []
     
     for i in range(n_val):
         val_series = val_matrix[:, i]
-        #print("val_series ", val_series)
-        # Oblicz odległość euklidesową między i-tym rzędem w val_matrix a każdym rzędem w train_matrix
         v_expanded = val_series[:, np.newaxis]  # Kształt: (8, 1)
 
-        # Oblicz różnicę pomiędzy punktami a wektorem
-        diff = train_matrix - v_expanded
-        
-        # Oblicz dystans Euklidesowy
-        distances = np.sqrt(np.sum(diff**2, axis=0))
-        
-        # Znajdź indeksy k najmniejszych wartości (najbliższych sąsiadów)
-        k_nearest_indices = np.argsort(distances)[:k]
-        
-        class_to_max_prototype = np.zeros(n_classes)
-        
-        distances = np.linalg.norm(centroids - v_expanded, axis=1)
-        # for idx in k_nearest_indices:
-        #     # Sortuj prototypy według wartości przynależności malejąco dla danego sąsiada
-        #     sorted_prototypes = np.argsort(train_matrix[:, idx])[::-1]
         sorted_prototypes = np.argsort(val_series)[::-1]
-    
+        class_to_max_prototype = np.zeros(n_classes)
+
         for prototype_idx in sorted_prototypes:
                 # Mapuj prototyp na odpowiednią klasę
                 mapped_class = prototype_to_class[prototype_idx]
@@ -180,32 +150,6 @@ def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_
                     break  # Ponieważ sortowanie jest malejące, dalsze prototypy będą miały mniejszą przynależność
         
         sorted_class_indices = np.argsort(class_to_max_prototype)[::-1]  
-        # Uzyskaj indeksy centroidów posortowane według odległości
-        #print("val_series ", sorted_class_indices)
-
-        # sorted_indices = np.argsort(val_series)
-        # # for idx in k_nearest_indices:
-        # #     # Sortuj prototypy według wartości przynależności malejąco dla danego sąsiada
-        # #     sorted_prototypes = np.argsort(train_matrix[:, idx])[::-1]
-            
-        # for prototype_idx in sorted_indices:
-        #         # Mapuj prototyp na odpowiednią klasę
-        #         mapped_class = prototype_to_class[prototype_idx]
-                
-        #         # Jeśli klasa nie była jeszcze dodana lub obecny prototyp ma większą przynależność, zaktualizuj
-        #         if class_to_max_prototype[mapped_class] == 0 or class_to_max_prototype[mapped_class] < val_series[prototype_idx]:
-        #             class_to_max_prototype[mapped_class] = val_series[prototype_idx]
-        #         else:
-        #             break  # Ponieważ sortowanie jest malejące, dalsze prototypy będą miały mniejszą przynależność
-        
-        #sorted_class_indices = np.argsort(class_to_max_prototype)[::-1]       
-        # Zlicz klasy k najbliższych sąsiadów
-        #class_counter = Counter(k_nearest_classes)
-        
-        # # Zwróć klasy uporządkowane od najczęstszej do najmniej częstej
-        # sorted_classes = [cls for cls, count in class_counter.most_common()]
-        #print("sorted_class_indices")
-        #print(sorted_class_indices)
         classified_labels.append(sorted_class_indices)
     
     # Przeprowadź głosowanie większościowe z eliminacją
@@ -214,12 +158,7 @@ def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_
     return final_class
 
 
-def classify_points_knn_eliminate_minor_class(trained_x, centroids, n_classes, validation_x_chunked = None, clusters_for_each_class = None, f_t = None):
-    
-    _, fuzzy_labels_trained, _ = predict_data_dissfcm(trained_x, centroids)
-    if f_t is not None:
-        fuzzy_labels_trained = f_t
-
+def classify_points_knn_eliminate_minor_class(centroids, n_classes, validation_x_chunked, clusters_for_each_class = None):
     max_cluster = len(centroids)
     
     cluster_to_class = np.full(max_cluster, -1)  # Inicjalizujemy wartości np. -1 dla niezdefiniowanych
@@ -227,23 +166,18 @@ def classify_points_knn_eliminate_minor_class(trained_x, centroids, n_classes, v
     for class_idx, cluster_range in clusters_for_each_class.items():
         for cluster in cluster_range:
             cluster_to_class[cluster] = class_idx
-    k = 7
-
 
     validation_classified = None
-    validation_classified_chunks_before_voting = []
     validation_classified_chunks_majority = []
-
-    validation_classified_chunks_majority = []
-
     itr = 0
+    
     for chunk in validation_x_chunked:
         _, fuzzy_labels_chunk, _ = predict_data_dissfcm(chunk, centroids)
-        chunk_classified = classify_with_knn_eliminate_minor(fuzzy_labels_trained, fuzzy_labels_chunk, k, cluster_to_class, n_classes, centroids)  
+        chunk_classified = classify_segment(fuzzy_labels_chunk, cluster_to_class, n_classes, centroids)  
+        
         if chunk_classified is not None:
             mode_value, count = stats.mode(chunk_classified)
             majority = np.full(len(chunk), mode_value)
-                
             validation_classified_chunks_majority.append(majority)
             
     validation_classified = np.concatenate(validation_classified_chunks_majority[:])  
@@ -753,7 +687,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
 
-            validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), centroids, n_classes, validation_chunks, clusters_for_each_class = clusters_for_each_class)
+            validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, validation_chunks, clusters_for_each_class = clusters_for_each_class)
 
             statistics = calculate_statistics(np.concatenate(validation_chunks_y[:]), validation_y_predicted)  
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
