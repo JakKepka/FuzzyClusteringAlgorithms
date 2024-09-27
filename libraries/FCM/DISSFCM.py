@@ -697,7 +697,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
     best_centroids_statistics = statistics
     
     # Tablica blędów poprzednich dla każdej klasy
-    V_max_prev = [0] * n_classes
+    V_max_prev = [np.inf] * n_classes
     cluster_to_class_assigned = 0
 
     # Kolejne trenowanie modelu
@@ -737,7 +737,11 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             fuzzy_labels_local = fuzzy_labels[clusters, :]
    
             # Pętla Split
-            while (V_max > V_max_prev[current_class] and count > 0 and abs(V_max - V_max_prev[current_class]) > 2 ) and split_while_iteration < 10:
+            print("  V[clusters]: ", V)
+            print(" clusters: ", clusters)
+            print(" V_max ", V_max)
+            print(" V_max_prev[current_class]: ", V_max_prev[current_class])
+            while (V_max > V_max_prev[current_class] and count > 0 and abs(V_max - V_max_prev[current_class]) > 1 ) and split_while_iteration < 3:
                 # Funkcja Split, dzieli centroidy/generuje nowe.
                 z, centroids_updated, fuzzy_labels = split_centroids(data, fuzzy_labels_local, centroids[clusters], V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
                 n_clusters += 1
@@ -758,14 +762,6 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
                 V = V[clusters]
                 V_max = np.max(V)
                 V_max_cluster_id = np.argmax(V)   
-                # Aktualizacja numery rozaptrywanej obecnie klasy
-                # for i in range(n_classes):
-                #     if(V_max_cluster_id in clusters_for_each_class[i]):
-                #         current_class = i
-                        
-                # Aktualizujemy błąd w trakcie działania pętli (do rozważenia)
-                #V_max_prev[current_class] = V_max
-    
                 # Zwiększamy numer iteracji pętli.
                 split_while_iteration += 1
                    
@@ -785,7 +781,9 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             if(visualise_data == True):
                 plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned)
                 plot_func(X_validation, centroids, fuzzy_labels, cluster_to_class_assigned, y_validation)
-                custom_plot(np.concatenate(validation_chunks[:]), centroids, validation_y_predicted, cluster_to_class, fuzzy_labels)
+
+                custom_plot(data, centroids, np.full(len(data),current_class), cluster_to_class, fuzzy_labels, np.concatenate(validation_chunks[:]))
+                custom_plot(np.concatenate(validation_chunks[:]), centroids, validation_y_predicted, cluster_to_class, fuzzy_labels, np.concatenate(validation_chunks[:]))
 
             
             # Szukamy najlepszych centroidów

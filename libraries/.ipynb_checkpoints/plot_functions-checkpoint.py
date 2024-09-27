@@ -130,7 +130,7 @@ def plot_pca_cluster(X, cntr, fuzzy_labels, cluster_to_class, y_labels=None):
         plt.legend()
         plt.show()
 
-def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels):
+def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels, data):
     cluster_labels = np.argmax(fuzzy_labels, axis=0)
     # Sprawdzamy czy można redukować wymiar, czy wystarczy narysować wykres bez zmian
     #data_type = simple_plot(X, cntr, cluster_labels, 'pca')
@@ -140,7 +140,8 @@ def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels):
     # Redukcja wymiarowości za pomocą PCA do 2 wymiarów
     if True:
         pca = PCA(n_components=2)
-        data_pca = pca.fit_transform(X)
+        pca.fit(data)
+        data_pca = pca.transform(X)
         description = []
         scatter_plots = []
 
@@ -162,10 +163,10 @@ def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels):
         for class_idx in range(4):
             #print("---------------klasa-----------", class_idx)
             class_mask = validation_y == class_idx
-            for i in range(fuzzy_labels.shape[1]):
-                if class_mask[i]:  # Sprawdzamy, czy maska dla tego indeksu jest prawdziwa
+            #for i in range(fuzzy_labels.shape[1]):
+            #    if class_mask[i]:  # Sprawdzamy, czy maska dla tego indeksu jest prawdziwa
                     #for value in fuzzy_labels_val[:, i]:
-                    description.append(fuzzy_labels[:, i])
+                    #description.append(fuzzy_labels[:, i])
                     #print("labele: ",fuzzy_labels[:, i] )
                     #print("klasa: ", cluster_to_class[np.argmax(fuzzy_labels[:, i])])
 
@@ -181,7 +182,17 @@ def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels):
                 ax.scatter(centroid[0], centroid[1], 
                            color=colors(class_idx), edgecolor='black', 
                            marker='o', s=200, linewidths=2, label=f'Centroid {idx} (Klasa {class_idx})')
-
+        # def hover_label(sel):
+        #     text = ''
+        #     #for i in description[sel.index]:
+        #     #print(description[sel.index])
+        #     k = 0
+        #     for i in description[sel.index]:
+        #         text += (f"u do centorida {k} wynosi: {i:.3f}\n")
+        #         k += 1
+        #     sel.annotation.set_text(text)
+           
+        # mplcursors.cursor(scatter_plots, hover=True).connect("add", hover_label)
         # Dodanie centrów klastrów do wykresu
         plt.title('Fuzzy C-Means Clustering (PCA Reduced Data)')
         ax.scatter(cntr_pca[:, 0], cntr_pca[:, 1], marker='x', s=200, c='black', label='PCA Cluster Centers')
