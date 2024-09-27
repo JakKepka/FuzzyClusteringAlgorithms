@@ -215,58 +215,40 @@ def classify_with_knn_eliminate_minor(train_matrix, val_matrix, k, prototype_to_
 
 
 def classify_points_knn_eliminate_minor_class(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None, validation_y_chunked = None, clusters_for_each_class = None, f_t = None):
-    # przynależności wszystkich punktów ze zbioru treningowego do centroidów
     
-    #fuzzy_labels_trained = create_labels(trained_x, trained_y.T, centroids, metric, m)
     _, fuzzy_labels_trained, _ = predict_data_dissfcm(trained_x, centroids)
     if f_t is not None:
         fuzzy_labels_trained = f_t
-    # przynależność klastrów do klas
-    #cluster_to_class = assign_clusters_to_classes(fuzzy_labels_trained, centroids, trained_y, n_classes)
+
     max_cluster = len(centroids)
     
-    # # Inicjalizacja tablicy, gdzie pod indeksem klastra będzie klasa
     cluster_to_class = np.full(max_cluster, -1)  # Inicjalizujemy wartości np. -1 dla niezdefiniowanych
     
     for class_idx, cluster_range in clusters_for_each_class.items():
         for cluster in cluster_range:
             cluster_to_class[cluster] = class_idx
     k = 7
-    # przynależność wszystkich punktów ze zbioru walidacyjnego do centroidów
-    #fuzzy_labels_val = create_labels_simple(validation_x ,centroids, metric, m)
-    _, fuzzy_labels_val, _ = predict_data_dissfcm(validation_x, centroids)
 
 
     validation_classified = None
     validation_classified_chunks_before_voting = []
     validation_classified_chunks_majority = []
-    # wyznaczanie klas na podstawie przynależności do centroidów dla zbioru walidacyjnego
-    #if classify_whole_segment:
+
     validation_classified_chunks_majority = []
 
     itr = 0
-    #print("fuzzy_labels_val: ", fuzzy_labels_val)
     for chunk in validation_x_chunked:
         _, fuzzy_labels_chunk, _ = predict_data_dissfcm(chunk, centroids)
-        #print("fuzzy_labels_chunk: ", fuzzy_labels_chunk)
-
         chunk_classified = classify_with_knn_eliminate_minor(fuzzy_labels_trained, fuzzy_labels_chunk, k, cluster_to_class, n_classes, centroids)  
-        #print("wynik glosowania")
-        #print(chunk_classified)
         if chunk_classified is not None:
             mode_value, count = stats.mode(chunk_classified)
-            
-            #print("chunk_classified: ",chunk_classified)  
             majority = np.full(len(chunk), mode_value)
                 
             validation_classified_chunks_majority.append(majority)
-            validation_classified_chunks_before_voting.append(chunk_classified)
             
     validation_classified = np.concatenate(validation_classified_chunks_majority[:])  
-    #validation_classified_chunks_before_voting = np.concatenate(validation_classified_chunks_before_voting)  
-    #else:
-    #    validation_classified = classify_with_knn(fuzzy_labels_trained, fuzzy_labels_val, k ,cluster_to_class, n_classes)
-    return validation_classified, validation_classified_chunks_before_voting, validation_classified_chunks_majority, cluster_to_class ,fuzzy_labels_val
+
+    return validation_classified, cluster_to_class
     
 #################################################################################
 
@@ -771,7 +753,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
 
-            validation_y_predicted, validation_y_before_major, validation_y_chunked, cluster_to_class, fuzzy_labels_val =         classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), np.concatenate(chunks_y[:]),np.concatenate(validation_chunks[:]), np.concatenate(validation_chunks_y[:]), centroids, 'euclidean', m, 4, True, validation_chunks, clusters_for_each_class = clusters_for_each_class)
+            validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(np.concatenate(chunks[:]), np.concatenate(chunks_y[:]),np.concatenate(validation_chunks[:]), np.concatenate(validation_chunks_y[:]), centroids, 'euclidean', m, 4, True, validation_chunks, clusters_for_each_class = clusters_for_each_class)
             
             statistics = calculate_statistics(np.concatenate(validation_chunks_y[:]), validation_y_predicted)  
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
