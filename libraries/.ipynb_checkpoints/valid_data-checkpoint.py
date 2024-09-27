@@ -182,3 +182,24 @@ def valid_data_knn(chunks, chunks_y, knn_model, print_data=False):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
 
     return  silhouette_avg, davies_bouldin_avg, rand, statistics
+
+def valid_data_rocket(chunks, chunks_y, X_test_panel, rocket_classifier, print_data=False):
+
+    # Scalamy segmenty w jeden dataset    
+    data_test, y_extended = merge_chunks(chunks, chunks_y)
+
+    # Przewidujemy klasy dla danych testowych
+    cluster_membership = rocket_classifier.predict(X_test_panel)
+    
+    # Wyznaczenie wskaźników jakości
+    silhouette_avg = silhouette_score(data_test, cluster_membership)
+    davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
+    rand = rand_score(y_extended, cluster_membership)
+
+    # Statystki dla klasyfikacji segmentów
+    statistics = validate_segments_knn(chunks, chunks_y, cluster_membership)
+
+    if(print_data == True):
+        print_statistics(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
+
+    return  silhouette_avg, davies_bouldin_avg, rand, statistics

@@ -28,7 +28,7 @@ def plot_metrics_by_algorithm(output_list, output_list_name):
 
     # Tworzymy wykres dla każdego klucza (np. "cluster1", "cluster2")
     for key in all_keys:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(len(output_list_name)*6, 6))
 
         # Zbieramy dane dla każdego datasetu i danego klucza
         labels = []
@@ -88,7 +88,7 @@ def plot_metrics_by_metrics(output_list, output_list_name):
     x = np.arange(len(all_keys))  # Oś X (indeksy dla kluczy)
     width = 0.15  # Szerokość słupków
 
-    fig, axs = plt.subplots(1, num_metrics, figsize=(num_metrics * 6, 6), sharey=True)
+    fig, axs = plt.subplots(1, num_metrics, figsize=(num_metrics * len(output_list_name) * 6, 6), sharey=True)
     
     # Rysowanie słupków dla każdej metryki
     for i, metric in enumerate(metric_names):
@@ -152,7 +152,17 @@ def plot_metrics_by_dataset(output_list, output_list_name):
 
         # Rysowanie słupków dla każdej metryki
         for j, metric in enumerate(metric_names):
-            ax.bar(x + offsets[j], metrics[metric], width, label=metric)
+            bars = ax.bar(x + offsets[j], metrics[metric], width, label=metric)
+            
+            # Dodawanie wartości nad słupkami
+            for bar in bars:
+                yval = bar.get_height()  # Pobierz wysokość (wartość) słupka
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,  # Pozycja X (środek słupka)
+                    yval,  # Pozycja Y (na górze słupka)
+                    f'{yval:.2f}',  # Tekst do wyświetlenia
+                    ha='center', va='bottom'  # Wyrównanie tekstu
+                )
 
         # Konfiguracja wykresu dla danego datasetu
         ax.set_xlabel('Klucze')
@@ -164,7 +174,6 @@ def plot_metrics_by_dataset(output_list, output_list_name):
 
     plt.tight_layout()
     plt.show()
-
 
 def plot_centroids_from_dict(data_dict):
 
@@ -566,7 +575,17 @@ def compare_models_statistics(statistics):
     
     # Tworzymy słupki dla każdego modelu
     for i, model in enumerate(models):
-        ax.bar(x + i * width, results[:, i], width, label=model)
+        bars = ax.bar(x + i * width, results[:, i], width, label=model)
+        
+        # Dodawanie wartości nad słupkami
+        for bar in bars:
+            yval = bar.get_height()  # Pobierz wysokość (wartość) słupka
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,  # Pozycja X (środek słupka)
+                yval,  # Pozycja Y (na górze słupka)
+                f'{yval:.2f}',  # Tekst do wyświetlenia
+                ha='center', va='bottom'  # Wyrównanie tekstu
+            )
     
     # Dodajemy etykiety i tytuły
     ax.set_xlabel('Metryki')
@@ -580,5 +599,3 @@ def compare_models_statistics(statistics):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
-
-

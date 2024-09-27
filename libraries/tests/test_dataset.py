@@ -18,8 +18,10 @@ from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot
 from libraries.plot_functions import create_set_for_stats, compare_models_statistics, overview_plot
 from tslearn.datasets import UCR_UEA_datasets
 from libraries.chunks import create_chunks, create_dataset_chunks, merge_chunks
-from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn
+from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn, valid_data_rocket
 
+# Diffrent classification algorithms
+from sktime.classification.kernel_based import RocketClassifier
 
 # FCM's
 from libraries.FCM.IFCM import incremental_fuzzy_cmeans
@@ -164,6 +166,46 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
     print(f"Czas wykonania: {execution_time} sekund")
     
     ###########################################################################################################
+
+    ###########################################################################################################
+    # ROCKET
+    # Początek pomiaru czasu
+    start_time = time.time()
+    
+    print(f'  RocketClassifier')
+
+    n_samples, n_features = X_train.shape
+    # Konwersja danych 2D na panel danych (sktime)
+    X_train_panel = pd.DataFrame({f'feature_{i}': [pd.Series(X_train[j, :]) for j in range(n_samples)] 
+                                  for i in range(n_features)})
+
+    n_samples, n_features = data_test.shape
+    X_test_panel = pd.DataFrame({f'feature_{i}': [pd.Series(data_test[j, :]) for j in range(n_samples)] 
+                                 for i in range(n_features)})
+
+    # Inicjalizacja RocketClassifier
+    rocket_classifier = RocketClassifier()
+    
+    # Trenowanie modelu na danych treningowych
+    rocket_classifier.fit(X_train_panel, y_train)
+
+    cluster_membership = rocket_classifier.predict(X_test_panel)
+    
+    silhouette_avg, davies_bouldin_avg, rand, statistics = valid_data_rocket(chunks_test, chunks_test_y, X_test_panel, rocket_classifier)
+    
+    models['ROCKET'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
+    
+    if (visualise_non_incremental_data == True):
+        plot_pca_standard(data_test, cluster_membership)
+    
+    # Koniec pomiaru czasu
+    end_time = time.time()
+    
+    # Wyświetlenie czasu wykonania
+    execution_time = end_time - start_time
+    print(f"Czas wykonania: {execution_time} sekund")
+###########################################################################################################
+
     
     # porównanie wyników
     compare_models_statistics(models)
@@ -182,7 +224,10 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
 
     # Pobieranie zbioru danych 'EigenWorms'
     X_train_, y_train_, X_test_, y_test_ = ucr_uea.load_dataset(dataset_name)
-    
+
+    if(X_train_ is None):
+        raise ValueError("Wystąpił błąd: nie pobrano dataset'u. Sprawdź czy istnieje.")
+
     X_train, y_train = convert_to_dataframe(X_train_, y_train_)
     X_test, y_test = convert_to_dataframe(X_test_, y_test_)
     
@@ -191,6 +236,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
     # Poprawiamy rozmiar danych do 2d
     X_train, y_train = reshape_data(X_train, y_train, sample_size)
     X_test, y_test = reshape_data(X_test, y_test, sample_size)
+    
     # Stratyfikacja danych
     if stratify_percantage < 1.0:
         X_train, y_train = stratify_data(X_train, y_train, stratify_percantage)
