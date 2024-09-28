@@ -657,6 +657,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
             print(" clusters: ", clusters)
             print(" V_max ", V_max)
             print(" V_max_prev[current_class]: ", V_max_prev[current_class])
+            
             while (V_max > V_max_prev[current_class] and count > 0 and abs(V_max - V_max_prev[current_class]) > 1 ) and split_while_iteration < 3:
                 # Funkcja Split, dzieli centroidy/generuje nowe.
                 z, centroids_updated, fuzzy_labels = split_centroids(data, fuzzy_labels_local, centroids[clusters], V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=error)
