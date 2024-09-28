@@ -7,12 +7,201 @@ import random
 from tqdm import tqdm
 import numpy as np
 import math
+import itertools
+
 #################################################################################
 
                             ##Dimentional Reduction Plots##
 
 #################################################################################
 
+def plot_metrics_by_algorithm(output_list, output_list_name):
+    
+    # Zbieramy metryki, które będziemy analizować
+    metric_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+    num_metrics = len(metric_names)
+    num_datasets = len(output_list)
+
+    # Przygotowujemy dane do wykresów
+    all_keys = list(output_list[0].keys())  # Zakładamy, że każdy dataset ma te same klucze
+    num_keys = len(all_keys)
+
+    # Tworzymy wykres dla każdego klucza (np. "cluster1", "cluster2")
+    for key in all_keys:
+        fig, ax = plt.subplots(figsize=(len(output_list_name)*6, 6))
+
+        # Zbieramy dane dla każdego datasetu i danego klucza
+        labels = []
+        for i, dataset_name in enumerate(output_list_name):
+            data_dict = output_list[i]
+            stats = data_dict[key][3]  # Pobieramy statystyki dla danego klucza
+            
+            # Zbieramy metryki dla tego klucza i datasetu
+            values = [stats.get(metric, 0) for metric in metric_names]
+            labels.append(f"{dataset_name}")
+            
+            # Rysowanie słupków dla tego datasetu
+            x = np.arange(num_metrics) + i * 0.2  # Przesunięcie słupków
+            bars = ax.bar(x, values, width=0.2, label=dataset_name)
+            
+            # Dodanie wartości liczbowych nad słupkami
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2, height, f'{height:.2f}', ha='center', va='bottom')
+
+        # Konfiguracja osi i tytułów
+        ax.set_xticks(np.arange(num_metrics) + (num_datasets - 1) * 0.1)  # Środek grupy słupków
+        ax.set_xticklabels(metric_names)
+        ax.set_ylabel('Wartości Metryk')
+        ax.set_title(f'Metryki dla klucza: {key}')
+        ax.legend(title="Datasety", loc="upper left", bbox_to_anchor=(1.05, 1))
+        
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_metrics_by_metrics(output_list, output_list_name):
+    # Zbieramy statystyki dla każdego słownika
+    metric_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+    num_metrics = len(metric_names)
+    num_datasets = len(output_list)
+    
+    # Przygotowanie struktury danych do zbierania statystyk
+    metrics_per_key = {name: [] for name in metric_names}
+    labels = []
+
+    # Iterujemy po każdym elemencie słownika
+    all_keys = list(output_list[0].keys())  # Zakładamy, że każdy dataset ma te same klucze
+    for key in all_keys:
+        labels.append(f"{key}")  # Etykiety dla każdego elementu (klucza)
+        
+        # Zbieramy statystyki dla każdego datasetu i danego klucza
+        for metric in metric_names:
+            stats_for_metric = []
+            for i, data_dict in enumerate(output_list):
+                # Pobierz statystyki (czwarty element listy)
+                stats = data_dict[key][3]
+                stats_for_metric.append(stats.get(metric, 0))  # Domyślnie 0, jeśli brak metryki
+            metrics_per_key[metric].append(stats_for_metric)
+    
+    # Tworzenie wykresów dla każdej z metryk
+    x = np.arange(len(all_keys))  # Oś X (indeksy dla kluczy)
+    width = 0.15  # Szerokość słupków
+
+    fig, axs = plt.subplots(1, num_metrics, figsize=(num_metrics * len(output_list_name) * 6, 6), sharey=True)
+    
+    # Rysowanie słupków dla każdej metryki
+    for i, metric in enumerate(metric_names):
+        ax = axs[i]
+        for j, dataset_name in enumerate(output_list_name):
+            offsets = (j - num_datasets / 2) * width  # Przesunięcie dla każdego datasetu
+            data_to_plot = [metrics_per_key[metric][k][j] for k in range(len(all_keys))]
+            bars = ax.bar(x + offsets, data_to_plot, width, label=dataset_name)
+            
+            # Dodanie wartości liczbowych nad słupkami
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2, height, f'{height:.2f}', ha='center', va='bottom')
+
+        # Konfiguracja osi i tytułów
+        ax.set_xlabel('Elementy (klucze)')
+        ax.set_title(metric)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=45, ha="right")
+
+    # Dodanie legendy i konfiguracja ogólna
+    axs[0].set_ylabel('Wartości Metryk')
+    axs[0].legend(output_list_name, title="Datasety", loc="upper left", bbox_to_anchor=(1.05, 1))
+    
+    plt.tight_layout()
+    plt.show()
+    
+def plot_metrics_by_dataset(output_list, output_list_name):
+    # Zbieramy statystyki dla każdego słownika
+    metric_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+
+    # Tworzenie wykresów obok siebie (jeden subplot na dataset)
+    n_datasets = len(output_list)
+    fig, axes = plt.subplots(1, n_datasets, figsize=(6 * n_datasets, 6))  # 6 jednostek szerokości na każdy subplot
+    
+    if n_datasets == 1:
+        axes = [axes]  # Dla przypadku, gdy mamy tylko jeden dataset, musimy zamienić to na listę.
+
+    # Iterujemy po każdym słowniku
+    for i, data_dict in enumerate(output_list):
+        ax = axes[i]  # Pobieramy odpowiedni subplot
+        name = output_list_name[i]
+        metrics = {name: [] for name in metric_names}
+        labels = []
+
+        for key, value in data_dict.items():
+            # Pobierz statystyki (czwarty element listy)
+            stats = value[3]
+            labels.append(key)  # Nazwy do osi X dla danego datasetu
+            
+            # Zapisz metryki
+            for metric in metric_names:
+                metrics[metric].append(stats.get(metric, 0))  # Domyślna wartość to 0, jeśli brak metryki
+
+        # Tworzenie wykresów dla każdej z metryk
+        x = np.arange(len(labels))  # Oś X (indeksy dla kluczy)
+        width = 0.2  # Szerokość słupków
+        
+        # Przesunięcia dla każdej z metryk, aby słupki się nie nakładały
+        offsets = np.linspace(-width, width, len(metric_names))
+
+        # Rysowanie słupków dla każdej metryki
+        for j, metric in enumerate(metric_names):
+            bars = ax.bar(x + offsets[j], metrics[metric], width, label=metric)
+            
+            # Dodawanie wartości nad słupkami
+            for bar in bars:
+                yval = bar.get_height()  # Pobierz wysokość (wartość) słupka
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,  # Pozycja X (środek słupka)
+                    yval,  # Pozycja Y (na górze słupka)
+                    f'{yval:.2f}',  # Tekst do wyświetlenia
+                    ha='center', va='bottom'  # Wyrównanie tekstu
+                )
+
+        # Konfiguracja wykresu dla danego datasetu
+        ax.set_xlabel('Klucze')
+        ax.set_ylabel('Wartości Metryk')
+        ax.set_title(f'Metryki dla {name}')
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=45, ha="right")
+        ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_centroids_from_dict(data_dict):
+
+    colors = itertools.cycle(plt.cm.tab10.colors)  # Użyj różnych kolorów dla każdego zestawu centroidów
+
+    plt.figure()
+    plt.title("Centroidy dla różnych klastrów (z PCA dla wymiarów > 2)")
+    
+    for name, values in data_dict.items():
+        centroids = np.array(values[2])  # Pobierz centroidy (trzeci element listy)
+        n_clusters, dim = centroids.shape
+
+        # Redukcja PCA dla wymiarów > 2
+        if dim > 2:
+            pca = PCA(n_components=2)
+            centroids_2d = pca.fit_transform(centroids)
+        else:
+            centroids_2d = centroids  # Jeśli wymiary są 2D, nie trzeba redukować
+
+        # Rysuj centroidy na tym samym wykresie, z unikalnym kolorem
+        color = next(colors)
+        plt.scatter(centroids_2d[:, 0], centroids_2d[:, 1], c=[color], label=name, marker='o', alpha=0.5)
+    
+    plt.xlabel('Wymiar 1 (lub PCA komponent 1)')
+    plt.ylabel('Wymiar 2 (lub PCA komponent 2)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 def simple_plot(X, cntr, cluster_labels, name):
     n_clusters = cntr.shape[0]
@@ -455,7 +644,17 @@ def compare_models_statistics(statistics):
     
     # Tworzymy słupki dla każdego modelu
     for i, model in enumerate(models):
-        ax.bar(x + i * width, results[:, i], width, label=model)
+        bars = ax.bar(x + i * width, results[:, i], width, label=model)
+        
+        # Dodawanie wartości nad słupkami
+        for bar in bars:
+            yval = bar.get_height()  # Pobierz wysokość (wartość) słupka
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,  # Pozycja X (środek słupka)
+                yval,  # Pozycja Y (na górze słupka)
+                f'{yval:.2f}',  # Tekst do wyświetlenia
+                ha='center', va='bottom'  # Wyrównanie tekstu
+            )
     
     # Dodajemy etykiety i tytuły
     ax.set_xlabel('Metryki')
@@ -469,5 +668,3 @@ def compare_models_statistics(statistics):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
-
-

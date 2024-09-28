@@ -18,8 +18,10 @@ from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot
 from libraries.plot_functions import create_set_for_stats, compare_models_statistics, overview_plot
 from tslearn.datasets import UCR_UEA_datasets
 from libraries.chunks import create_chunks, create_dataset_chunks, merge_chunks
-from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn
+from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn, valid_data_rocket
 
+# Diffrent classification algorithms
+from sktime.classification.kernel_based import RocketClassifier
 
 # FCM's
 from libraries.FCM.IFCM import incremental_fuzzy_cmeans
@@ -123,7 +125,7 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
     
     silhouette_avg, davies_bouldin_avg, rand, statistics = valid_data_knn(chunks_test, chunks_test_y, knn_model)
     
-    models['KNN'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
+    models['KNN'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
     
     if (visualise_non_incremental_data == True):
         plot_pca_standard(data_test, cluster_membership)
@@ -151,7 +153,7 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
     
     silhouette_avg, davies_bouldin_avg, rand, statistics = valid_data_knn(chunks_test, chunks_test_y, knn_model_p)
     
-    models['KNN p%'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
+    models['KNN p%'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
     
     if (visualise_non_incremental_data == True):
         plot_pca_standard(data_test, cluster_membership)
@@ -164,6 +166,46 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
     print(f"Czas wykonania: {execution_time} sekund")
     
     ###########################################################################################################
+
+    ###########################################################################################################
+    # ROCKET
+    # Początek pomiaru czasu
+    start_time = time.time()
+    
+    print(f'  RocketClassifier')
+
+    n_samples, n_features = X_train.shape
+    # Konwersja danych 2D na panel danych (sktime)
+    X_train_panel = pd.DataFrame({f'feature_{i}': [pd.Series(X_train[j, :]) for j in range(n_samples)] 
+                                  for i in range(n_features)})
+
+    n_samples, n_features = data_test.shape
+    X_test_panel = pd.DataFrame({f'feature_{i}': [pd.Series(data_test[j, :]) for j in range(n_samples)] 
+                                 for i in range(n_features)})
+
+    # Inicjalizacja RocketClassifier
+    rocket_classifier = RocketClassifier()
+    
+    # Trenowanie modelu na danych treningowych
+    rocket_classifier.fit(X_train_panel, y_train)
+
+    cluster_membership = rocket_classifier.predict(X_test_panel)
+    
+    silhouette_avg, davies_bouldin_avg, rand, statistics = valid_data_rocket(chunks_test, chunks_test_y, X_test_panel, rocket_classifier)
+    
+    models['ROCKET'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
+    
+    if (visualise_non_incremental_data == True):
+        plot_pca_standard(data_test, cluster_membership)
+    
+    # Koniec pomiaru czasu
+    end_time = time.time()
+    
+    # Wyświetlenie czasu wykonania
+    execution_time = end_time - start_time
+    print(f"Czas wykonania: {execution_time} sekund")
+###########################################################################################################
+
     
     # porównanie wyników
     compare_models_statistics(models)
@@ -182,7 +224,10 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
 
     # Pobieranie zbioru danych 'EigenWorms'
     X_train_, y_train_, X_test_, y_test_ = ucr_uea.load_dataset(dataset_name)
-    
+
+    if(X_train_ is None):
+        raise ValueError("Wystąpił błąd: nie pobrano dataset'u. Sprawdź czy istnieje.")
+
     X_train, y_train = convert_to_dataframe(X_train_, y_train_)
     X_test, y_test = convert_to_dataframe(X_test_, y_test_)
     
@@ -240,76 +285,76 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
     
     print('Local DISSFCM')
     # Trenowanie Local DISSFCM 
-    diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm = dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_matrix, chunks_test, chunks_test_y, clusters_for_each_class.copy(), injection, m=m, visualise_data=visualise_incremental_data,  
+    diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, best_centroids_statistics_ldissfcm = dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_matrix, chunks_test, chunks_test_y, clusters_for_each_class.copy(), injection, m=m, visualise_data=visualise_incremental_data,  
     print_statistics=print_statistics_incremental_data, init_centroids=init_centroids.copy())
 
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm)
 
     # Zapisz wyniki do słownika
-    output['Local DISSFCM'] = [diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm]
+    output['Local DISSFCM'] = [diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, best_centroids_statistics_ldissfcm]
     
     print('DISSFCM')
     # Trenowanie DISSFCM
-    diagnosis_chunk_dissfcm, diagnosis_iterations_dissfcm, best_centroids_dissfcm = dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_y_shuffled, chunks_y_matrix_shuffled, chunks_test, chunks_test_y, clusters_for_each_class_shuffled.copy(), injection, m=m, visualise_data=visualise_incremental_data, 
+    diagnosis_chunk_dissfcm, diagnosis_iterations_dissfcm, best_centroids_dissfcm, best_centroids_statistics_dissfcm = dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_y_shuffled, chunks_y_matrix_shuffled, chunks_test, chunks_test_y, clusters_for_each_class_shuffled.copy(), injection, m=m, visualise_data=visualise_incremental_data, 
     print_statistics = print_statistics_incremental_data, init_centroids=init_centroids_shuffled.copy())
 
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_dissfcm, diagnosis_iterations_dissfcm)
 
     # Zapisz wyniki do słownika
-    output['DISSFCM'] = [diagnosis_chunk_dissfcm, diagnosis_iterations_dissfcm, best_centroids_dissfcm]
+    output['DISSFCM'] = [diagnosis_chunk_dissfcm, diagnosis_iterations_dissfcm, best_centroids_dissfcm, best_centroids_statistics_dissfcm]
   
     print('IFCM')
     # Trenowanie IFCM
-    diagnosis_chunk_ifcm, diagnosis_iterations_ifcm, best_centroids_ifcm = train_incremental_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, plot_func=plot_pca, init_centroids=init_centroids_shuffled.copy())
+    diagnosis_chunk_ifcm, diagnosis_iterations_ifcm, best_centroids_ifcm, best_centroids_statistics_ifcm = train_incremental_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, plot_func=plot_pca, init_centroids=init_centroids_shuffled.copy())
 
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_ifcm, diagnosis_iterations_ifcm)
 
     # Zapisz wyniki do słownika
-    output['IFCM'] = [diagnosis_chunk_ifcm, diagnosis_iterations_ifcm, best_centroids_ifcm]
+    output['IFCM'] = [diagnosis_chunk_ifcm, diagnosis_iterations_ifcm, best_centroids_ifcm, best_centroids_statistics_ifcm]
   
     print('Local IFCM')
     # Trenowanie Local IFCM
-    diagnosis_chunk_lifcm, diagnosis_iterations_lifcm, best_centroids_lifcm = train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, 
+    diagnosis_chunk_lifcm, diagnosis_iterations_lifcm, best_centroids_lifcm, best_centroids_statistics_lifcm = train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, 
     print_statistics=print_statistics_incremental_data, plot_func=plot_pca, clusters_for_each_class=clusters_for_each_class.copy(), init_centroids=init_centroids.copy())
 
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_lifcm, diagnosis_iterations_lifcm)
 
     # Zapisz wyniki do słownika
-    output['Local IFCM'] = [diagnosis_chunk_lifcm, diagnosis_iterations_lifcm, best_centroids_lifcm]
+    output['Local IFCM'] = [diagnosis_chunk_lifcm, diagnosis_iterations_lifcm, best_centroids_lifcm, best_centroids_statistics_lifcm]
   
     print('extending IFCM')
     # Trenowanie z rozszerzającymi się danymi IFCM
-    diagnosis_chunk_eifcm, diagnosis_iterations_eifcm, best_centroids_eifcm = train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks_shuffled, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, init_centroids=init_centroids_shuffled.copy())
+    diagnosis_chunk_eifcm, diagnosis_iterations_eifcm, best_centroids_eifcm, best_centroids_statistics_eifcm = train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks_shuffled, chunks_test, chunks_test_y, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, init_centroids=init_centroids_shuffled.copy())
     
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_eifcm, diagnosis_iterations_eifcm)
     
     # Zapisz wyniki do słownika
-    output['extending IFCM'] = [diagnosis_chunk_eifcm, diagnosis_iterations_eifcm, best_centroids_eifcm]
+    output['extending IFCM'] = [diagnosis_chunk_eifcm, diagnosis_iterations_eifcm, best_centroids_eifcm, best_centroids_statistics_eifcm]
   
     print('ISSFCM')
     # Trenowanie ISSFCM
-    diagnosis_chunk_issfcm, diagnosis_iterations_issfcm, best_centroids_issfcm = train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_y_shuffled, chunks_y_matrix, chunks_test, chunks_test_y, m=m, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, init_centroids=init_centroids_shuffled.copy())
+    diagnosis_chunk_issfcm, diagnosis_iterations_issfcm, best_centroids_issfcm, best_centroids_statistics_issfcm = train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks_shuffled, chunks_y_shuffled, chunks_y_matrix, chunks_test, chunks_test_y, m=m, visualise_data=visualise_incremental_data, print_statistics=print_statistics_incremental_data, init_centroids=init_centroids_shuffled.copy())
     
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_issfcm, diagnosis_iterations_issfcm)
 
     # Zapisz wyniki do słownika
-    output['ISSFCM'] = [diagnosis_chunk_issfcm, diagnosis_iterations_issfcm, best_centroids_issfcm]
+    output['ISSFCM'] = [diagnosis_chunk_issfcm, diagnosis_iterations_issfcm, best_centroids_issfcm, best_centroids_statistics_issfcm]
   
     print('Local ISSFCM')
     # Trenowanie Local ISSFCM
-    diagnosis_chunk_lissfcm, diagnosis_iterations_lissfcm,  best_centroids_lissfcm = train_local_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, chunks_test, chunks_test_y, clusters_for_each_class.copy(), m=m, visualise_data=visualise_incremental_data, init_centroids=init_centroids.copy())
+    diagnosis_chunk_lissfcm, diagnosis_iterations_lissfcm,  best_centroids_lissfcm, best_centroids_statistics_lissfcm = train_local_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, chunks_test, chunks_test_y, clusters_for_each_class.copy(), m=m, visualise_data=visualise_incremental_data, init_centroids=init_centroids.copy())
     
     if(visualise_output_of_incremental_data == True):
         overview_plot(diagnosis_chunk_lissfcm, diagnosis_iterations_lissfcm)
 
     # Zapisz wyniki do słownika
-    output['Local ISSFCM'] = [diagnosis_chunk_lissfcm, diagnosis_iterations_lissfcm, best_centroids_lissfcm]
+    output['Local ISSFCM'] = [diagnosis_chunk_lissfcm, diagnosis_iterations_lissfcm, best_centroids_lissfcm, best_centroids_statistics_lissfcm]
   
     # Koniec pomiaru czasu
     end_time = time.time()
