@@ -3,9 +3,187 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score
 from sklearn.metrics.cluster import rand_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef, log_loss
+from collections import Counter
+from scipy import stats
 
 from libraries.process_data import merge_chunks
 
+#################################################################################
+
+                        ##Glosowanie turowe##
+
+#################################################################################
+
+
+def assign_clusters_to_classes(fuzzy_labels, centroids, y, n_classes):
+    # Zliczam pierwsze punkty do jakich klas należą, następnie dopiero patrzę na segmenty.
+    cluster_membership = np.argmax(fuzzy_labels, axis=0)
+
+    count_points = np.zeros((centroids.shape[0], n_classes))
+    
+    for i, label in enumerate(cluster_membership):
+        count_points[label, y[i]] += 1
+
+    # Zwracamy tablicę z przyporządkowanymi klasami dla każdego clustra.
+    return np.argmax(count_points, axis=1)
+
+
+def assign_class_to_points(fuzzy_labels, cluster_to_class):
+    cluster_membership = np.argmax(fuzzy_labels, axis=0)
+
+    result = np.zeros(len(cluster_membership), dtype=fuzzy_labels.dtype)
+
+    result[:] = cluster_to_class[cluster_membership]
+    return result
+
+
+def classify_points(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None):
+    # przynależności wszystkich punktów ze zbioru treningowego do centroidów
+    fuzzy_labels_trained = create_labels(trained_x, centroids, metric, m)
+    
+    # przynależność klastrów do klas
+    cluster_to_class = assign_clusters_to_classes(fuzzy_labels_trained, centroids, trained_y, n_classes)
+    
+    # przynależność wszystkich punktów ze zbioru walidacyjnego do centroidów
+    fuzzy_labels_val = create_labels(validation_x, validation_y.T ,centroids, metric, m)
+
+    validation_classified = None
+    # wyznaczanie klas na podstawie przynależności do centroidów dla zbioru walidacyjnego
+    if classify_whole_segment:
+        validation_classified = []
+
+        for chunk in validation_x_chunked:
+            fuzzy_labels_chunk = create_labels(chunk, centroids, metric, m)
+            chunk_classified = assign_class_to_points(fuzzy_labels_chunk, cluster_to_class)
+            mode_value, count = stats.mode(chunk_classified)
+            
+            validation_classified.append(np.full(chunk_classified.shape, mode_value))
+        validation_classified = np.concatenate(validation_classified)  
+    else:
+        validation_classified = assign_class_to_points(fuzzy_labels_val, cluster_to_class)
+    
+    return validation_classified
+    
+
+def majority_vote_with_elimination(class_vectors, n_classes):
+    """
+    Przeprowadza głosowanie większościowe z eliminacją najmniej popularnych klas.
+    
+    Args:
+    class_vectors (list of list): Lista wektorów indeksów klas uporządkowanych według przynależności
+                                  dla każdego punktu walidacyjnego.
+    
+    Returns:
+    int: Ostateczna wybrana klasa po głosowaniu.
+    """
+    counter = 0
+    mark_deletion = np.zeros(n_classes)
+    while True:
+        # Zliczanie pierwszych klas (najbardziej przynależnych) dla wszystkich punktów
+        first_choices = [classes[0] for classes in class_vectors if classes.size > 0]
+        class_counter = Counter(first_choices)
+
+        # Sprawdzenie, czy mamy jedną dominującą klasę
+        if len(class_counter) == 1:
+            return first_choices  # Zwróć dominującą klasę
+        
+        # Znajdź najmniej popularną klasę (lub klasy, jeśli są remisowe)
+        min_count = min(class_counter.values())
+        least_common_classes = [cls for cls, count in class_counter.items() if count == min_count]
+
+        # Dla każdej klasy do usunięcia
+        for cls_to_remove in least_common_classes:
+            mark_deletion[cls_to_remove] = 1
+            for i, classes in enumerate(class_vectors):
+                # Jeśli pierwsza klasa jest tą do usunięcia, usuń ją
+                if classes.size > 0 and mark_deletion[classes[0]] == 1:
+                    class_vectors[i] = np.delete(classes, 0)
+
+        # Sprawdź, czy wszystkie wektory klas zostały wyeliminowane
+        if all(classes.size == 1 for classes in class_vectors):
+            return first_choices  # Zwróć None, jeśli wszystkie klasy zostały wyeliminowane
+
+        if counter >= 3:
+            # Zwróć pierwszą klasę, która pozostała na końcu eliminacji
+            return first_choices
+        
+        counter += 1
+
+
+def classify_segment(val_matrix, prototype_to_class ,n_classes, centroids):
+    """
+    Klasyfikuje segment danych
+    
+    Args:
+    val_matrix (numpy.ndarray): Macierz przynależności danych walidacyjnych, rozmiar [n_val x K].
+    prototype_to_class (list): Lista mapująca każdy prototyp na odpowiednią klasę.
+    
+    Returns:
+    list: Lista sklasyfikowanych klas dla każdej serii czasowej z walidacji.
+    """
+
+    n_val = val_matrix.shape[1]
+    
+    classified_labels = []
+    
+    for i in range(n_val):
+        val_series = val_matrix[:, i]
+        v_expanded = val_series[:, np.newaxis]  # Kształt: (8, 1)
+
+        sorted_prototypes = np.argsort(val_series)[::-1]
+        class_to_max_prototype = np.zeros(n_classes)
+
+        for prototype_idx in sorted_prototypes:
+                # Mapuj prototyp na odpowiednią klasę
+                mapped_class = prototype_to_class[prototype_idx]
+                
+                # Jeśli klasa nie była jeszcze dodana lub obecny prototyp ma większą przynależność, zaktualizuj
+                if class_to_max_prototype[mapped_class] == 0 or class_to_max_prototype[mapped_class] < val_series[prototype_idx]:
+                    class_to_max_prototype[mapped_class] = val_series[prototype_idx]
+                else:
+                    break  # Ponieważ sortowanie jest malejące, dalsze prototypy będą miały mniejszą przynależność
+        
+        sorted_class_indices = np.argsort(class_to_max_prototype)[::-1]  
+        classified_labels.append(sorted_class_indices)
+    
+    # Przeprowadź głosowanie większościowe z eliminacją
+    final_class = majority_vote_with_elimination(classified_labels, n_classes)
+    
+    return final_class
+
+
+def classify_points_knn_eliminate_minor_class(centroids, n_classes, validation_x_chunked, predict_data, clusters_for_each_class = None):
+    max_cluster = len(centroids)
+    
+    cluster_to_class = np.full(max_cluster, -1)  # Inicjalizujemy wartości np. -1 dla niezdefiniowanych
+    
+    for class_idx, cluster_range in clusters_for_each_class.items():
+        for cluster in cluster_range:
+            cluster_to_class[cluster] = class_idx
+
+    validation_classified = None
+    validation_classified_chunks_majority = []
+    itr = 0
+    
+    for chunk in validation_x_chunked:
+        _, fuzzy_labels_chunk, _ = predict_data(chunk, centroids)
+        chunk_classified = classify_segment(fuzzy_labels_chunk, cluster_to_class, n_classes, centroids)  
+        
+        if chunk_classified is not None:
+            mode_value, count = stats.mode(chunk_classified)
+            majority = np.full(len(chunk), mode_value)
+            validation_classified_chunks_majority.append(majority)
+            
+    validation_classified = np.concatenate(validation_classified_chunks_majority[:])  
+
+    return validation_classified, cluster_to_class
+
+
+#################################################################################
+
+                            ##Calculate statistics##
+
+#################################################################################
 
 
 def calculate_statistics(y_true, y_pred, y_proba=None):

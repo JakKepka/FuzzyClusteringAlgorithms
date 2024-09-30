@@ -8,7 +8,7 @@ from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 from skfuzzy.cluster import cmeans, cmeans_predict
 from libraries.classify_segments import validate_segments, validate_segments_knn, calculate_statistics
-
+from libraries.classify_segments import classify_points_knn_eliminate_minor_class
 #################################################################################
 
                             ##Statistics##
@@ -79,7 +79,7 @@ def print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics):
     print('Precision: ', statistics['Precision'])
     print('Recall: ', statistics['Recall'])
 
-def valid_data_ifcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean', print_data=False):
+def valid_data_ifcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m=2, error=0.05, metric='euclidean', print_data=False):
     from libraries.FCM.IFCM import predict_data_ifcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
@@ -92,15 +92,25 @@ def valid_data_ifcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclid
     davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
     rand = rand_score(y_extended, cluster_membership)
 
-    # Statystki dla klasyfikacji segmentów
-    statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+    if(clusters_for_each_class is None):
+        # Liczba klas
+        n_classes = len(clusters_for_each_class)
     
+        # Głosowanie większościowe
+        validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, chunks, predict_data_issfcm, clusters_for_each_class = clusters_for_each_class)
+    
+        # Klasyfikujemy segmenty
+        statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+    else:
+         # Statystki dla klasyfikacji segmentów
+        statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
     return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
 
-def valid_data_issfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean', print_data=False):
+def valid_data_issfcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m=2, error=0.05, metric='euclidean', print_data=False):
     from libraries.FCM.ISSFCM import predict_data_issfcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
@@ -113,30 +123,50 @@ def valid_data_issfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='eucl
     davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
     rand = rand_score(y_extended, cluster_membership)
 
-    # Statystki dla klasyfikacji segmentów
-    statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
-
+    if(clusters_for_each_class is None):
+        # Liczba klas
+        n_classes = len(clusters_for_each_class)
+    
+        # Głosowanie większościowe
+        validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, chunks, predict_data_issfcm, clusters_for_each_class = clusters_for_each_class)
+    
+        # Klasyfikujemy segmenty
+        statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+    else:
+         # Statystki dla klasyfikacji segmentów
+        statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+        
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
     return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
 
-def valid_data_dissfcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean', print_data=False):
+def valid_data_dissfcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m=2, error=0.05, metric='euclidean', print_data=False):
     from libraries.FCM.DISSFCM import predict_data_dissfcm
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
 
     # Predykcja algorytmu dissfcm
     cluster_membership, fuzzy_labels, fpc = predict_data_dissfcm(data_test, centroids)
-
+ 
     # Wyznaczenie wskaźników jakości
     silhouette_avg = silhouette_score(data_test, cluster_membership)
     davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
     rand = rand_score(y_extended, cluster_membership)
 
-    # Statystki dla klasyfikacji segmentów
-    statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
-
+    if(clusters_for_each_class is None):
+        # Liczba klas
+        n_classes = len(clusters_for_each_class)
+    
+        # Głosowanie większościowe
+        validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, chunks, predict_data_dissfcm, clusters_for_each_class = clusters_for_each_class)
+    
+        # Klasyfikujemy segmenty
+        statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+    else:
+        # Statystki dla klasyfikacji segmentów
+        statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+        
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
