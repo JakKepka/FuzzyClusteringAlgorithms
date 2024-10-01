@@ -2,9 +2,10 @@
 # Ignorowanie notatek
 obsidian_vault/
 klasyfikator_vault/
+
 */.ipynb_checkpoints/*
+*/__pycache__/*
 
 # Ignorowanie zbiorów danych
+
 datasets/
-jupyter-notebooks/.ipynb_checkpoints
-libraries/__pycache__
