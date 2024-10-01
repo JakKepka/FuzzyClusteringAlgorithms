@@ -70,18 +70,18 @@ def convert_to_dataframe(X, y):
     y_df = pd.Series(y)
     return X_df, y_df
 
-def reshape_data(X, y, n_features):
+def reshape_data(X, y):
     n_length, m_length = X.shape
 
-    y_reshaped = np.hstack([np.repeat(y[i], len(X.loc[i, 0])) for i in range(n_length)])  
+    y_reshaped = np.hstack([np.repeat(y.iloc[i], len(X.iloc[i, 0])) for i in range(n_length)])  
 
     columns = []
     for column_id in range(m_length):
 
         column = []
         for row_id in range(n_length):
-            list_length = len(X.loc[row_id, column_id])
-            column += list(X.loc[row_id, column_id])
+            list_length = len(X.iloc[row_id, column_id])
+            column += list(X.iloc[row_id, column_id])
             
         column = np.array(column)
         columns.append(column)
