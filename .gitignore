@@ -6,3 +6,4 @@ klasyfikator_vault/
 # Ignorowanie zbiorów danych
 datasets/
 jupyter-notebooks/.ipynb_checkpoints
+libraries/__pycache__
