@@ -127,6 +127,7 @@ def create_semi_supervised_matrix(X, y, n_clusters, injection=0.5):
 
     y_matrix = label_vector_to_semi_supervised_matrix(y, n_clusters, clusters_for_each_class, injection)
 
+    print(clusters_for_each_class)
     return y_matrix, init_centroids, clusters_for_each_class
 
 def upload_semi_supervised_matrix(y, new_cluster_id, clusters_for_each_class, n_clusters):

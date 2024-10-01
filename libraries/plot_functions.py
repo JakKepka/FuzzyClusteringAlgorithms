@@ -319,8 +319,8 @@ def plot_pca_cluster(X, cntr, fuzzy_labels, cluster_to_class, y_labels=None):
         plt.legend()
         plt.show()
 
-def custom_plot(X, cntr, validation_y, cluster_to_class, fuzzy_labels, data):
-    cluster_labels = np.argmax(fuzzy_labels, axis=0)
+def custom_plot(X, cntr, validation_y, cluster_to_class, data):
+    #cluster_labels = np.argmax(fuzzy_labels, axis=0)
     # Sprawdzamy czy można redukować wymiar, czy wystarczy narysować wykres bez zmian
     #data_type = simple_plot(X, cntr, cluster_labels, 'pca')
 

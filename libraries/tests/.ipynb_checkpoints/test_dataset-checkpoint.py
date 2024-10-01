@@ -15,7 +15,7 @@ import time
 from libraries.process_data import convert_to_dataframe, reshape_data, sort_by_class, shuffle_dataset_with_chunk_sizes
 from libraries.process_data import stratify_data, extend_list, map_strings_to_ints, shuffle_dataset, knn_with_library, select_subset
 from libraries.clusters import average_by_class, generate_clusters_proportional, label_vector_to_semi_supervised_matrix, create_semi_supervised_matrix, upload_semi_supervised_matrix
-from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot_pca, plot_pca_standard
+from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot_pca, plot_pca_standard, custom_plot
 from libraries.plot_functions import create_set_for_stats, compare_models_statistics, overview_plot
 from tslearn.datasets import UCR_UEA_datasets
 from libraries.chunks import create_chunks, create_dataset_chunks, merge_chunks
@@ -298,7 +298,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
     
     print('Local DISSFCM')
     # Trenowanie Local DISSFCM 
-    diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, best_centroids_statistics_ldissfcm, best_clusters_for_each_class = dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_matrix, chunks_val, chunks_val_y, clusters_for_each_class.copy(), injection, m=m, visualise_data=visualise_incremental_data,  
+    diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, best_centroids_statistics_ldissfcm, best_clusters_for_each_class = dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_matrix, chunks_test, chunks_test_y, clusters_for_each_class.copy(), injection, m=m, visualise_data=visualise_incremental_data,  
     print_statistics=print_statistics_incremental_data, init_centroids=init_centroids.copy())
 
     # Obliczanie statystków dla danych testowych
@@ -308,7 +308,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
         overview_plot(diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm)
 
     # Zapisz wyniki do słownika
-    output['Local DISSFCM'] = [diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, statistics]
+    output['Local DISSFCM'] = [diagnosis_chunk_ldissfcm, diagnosis_iterations_ldissfcm, best_centroids_ldissfcm, best_centroids_statistics_ldissfcm]
     
     print('DISSFCM')
     # Trenowanie DISSFCM
