@@ -202,7 +202,7 @@ def calculate_statistics(y_true, y_pred, y_proba=None):
     stats['F1-Score'] = f1_score(y_true, y_pred, average='weighted')
 
     # Confusion Matrix
-    stats['Confusion Matrix'] = 0# confusion_matrix(y_true, y_pred, labels=known_labels)
+    stats['Confusion Matrix'] = confusion_matrix(y_true, y_pred)
 
     # ROC-AUC (wymaga prawdopodobieństw dla każdej klasy)
     if y_proba is not None:
@@ -422,6 +422,31 @@ def validate_segments(chunks, chunks_y, centroids, fuzzy_labels):
     segment_labels = [cluster_to_class[cluster] for cluster in segment_clusters]
     
     return calculate_statistics(labels, segment_labels), cluster_to_class
+
+
+# Liczy statystki, przy ocenianiu/klasyfikiowaniu każdego punktu.
+def validate_labels(chunks, chunks_y, centroids, fuzzy_labels):
+
+    # Mergujemy chunki w dataset
+    data, y_true = merge_chunks(chunks, chunks_y)
+    
+    # Przydzielenie punktów do danych klustrów. Przydzielamy cluster najczesciej wystepujacy u sasiadow
+    y_pred = np.argmax(fuzzy_labels, axis=0)
+
+    # Przyporządkujemy clustry do klas na podstawie danych treningowych.
+    cluster_to_class = assign_clusters_to_classes_count_single_points(y_pred, centroids, y_true)
+
+    y_pred = [cluster_to_class[x] for x in y_pred]
+    
+    return calculate_statistics(y_true, y_pred)
+
+# Liczy statystki, przy ocenianiu/klasyfikiowaniu każdego punktu.
+def validate_labels_knn(chunks, chunks_y, y_pred):
+
+    # Mergujemy chunki w dataset
+    data, y_true = merge_chunks(chunks, chunks_y)
+    
+    return calculate_statistics(y_true, y_pred)
 
 # Łączy powyższe 2 funkcje. Zwraca klasy dla segmentów
 def validate_segments_knn(chunks, chunks_y, cluster_membership):
