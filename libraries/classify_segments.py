@@ -202,7 +202,7 @@ def calculate_statistics(y_true, y_pred, y_proba=None):
     stats['F1-Score'] = f1_score(y_true, y_pred, average='weighted')
 
     # Confusion Matrix
-    stats['Confusion Matrix'] = confusion_matrix(y_true, y_pred)
+    stats['Confusion Matrix'] = 0# confusion_matrix(y_true, y_pred, labels=known_labels)
 
     # ROC-AUC (wymaga prawdopodobieństw dla każdej klasy)
     if y_proba is not None:

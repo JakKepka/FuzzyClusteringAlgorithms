@@ -11,6 +11,7 @@ from scipy.io import arff
 import math
 import sys
 import time
+from collections import Counter
 
 from libraries.process_data import convert_to_dataframe, reshape_data, sort_by_class, shuffle_dataset_with_chunk_sizes
 from libraries.process_data import stratify_data, extend_list, map_strings_to_ints, shuffle_dataset, knn_with_library, select_subset
@@ -20,6 +21,7 @@ from libraries.plot_functions import create_set_for_stats, compare_models_statis
 from tslearn.datasets import UCR_UEA_datasets
 from libraries.chunks import create_chunks, create_dataset_chunks, merge_chunks
 from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn, valid_data_rocket
+from libraries.process_data import adjust_dataframe, aggregate_by_class
 
 # Diffrent classification algorithms
 from sktime.classification.kernel_based import RocketClassifier
@@ -215,7 +217,7 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
 
 
 # This function tests the given dataset with the set parameters using various methods: IFCM, FCM, ISSFCM, DISSFCM, and KNN.
-def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0, n_clusters = 8, n_classes = 4, dim = 6, injection = 1.0, m = 2, error = 0.05, stratify_percantage = 1.0, metric = 'euclidean', dataset_name = 'BasicMotions', visualise_processed_data = False, visualise_non_incremental_data = False, visualise_incremental_data = False, visualise_output_of_incremental_data = False, print_statistics_incremental_data = False):
+def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_class = 3, n_clusters = 8, n_classes = 4, dim = 6, injection = 1.0, m = 2, error = 0.05, stratify_percantage = 1.0, metric = 'euclidean', dataset_name = 'BasicMotions', visualise_processed_data = False, visualise_non_incremental_data = False, visualise_incremental_data = False, visualise_output_of_incremental_data = False, print_statistics_incremental_data = False):
 
     # Początek pomiaru czasu
     start_time = time.time()
@@ -229,34 +231,32 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
     if(X_train_ is None):
         raise ValueError("Wystąpił błąd: nie pobrano dataset'u. Sprawdź czy istnieje.")
 
+    # Konwersja do dataframe
     X_train, y_train = convert_to_dataframe(X_train_, y_train_)
     X_test, y_test = convert_to_dataframe(X_test_, y_test_)
 
+    # Padding/triming
+    X_train = adjust_dataframe(X_train, chunk_length_train)
+    X_test = adjust_dataframe(X_test, chunk_length_test)
+    
     # Utworzenie zbioru validacyjnego
     X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=42)
 
-    # Poprawiamy rozmiar danych do 2d
-    X_train, y_train = reshape_data(X_train, y_train)
-    X_test, y_test = reshape_data(X_test, y_test)
-    X_val, y_val = reshape_data(X_val, y_val)
-    
-    # Stratyfikacja danych
-    if stratify_percantage < 1.0:
-        X_train, y_train = stratify_data(X_train, y_train, stratify_percantage)
-        X_test, y_test = stratify_data(X_test, y_test, stratify_percantage)
-        X_val, y_val = stratify_data(X_val, y_val, stratify_percantage)
-    
-    # Zamienianie stringów na int
-    y_train = map_strings_to_ints(y_train)
-    y_test = map_strings_to_ints(y_test)
-    y_val = map_strings_to_ints(y_val)
-    
-    # Dziele punkty na segmenty średniej weilkości chunk_length_train z odchyleniem standardowym std_div. Segmenty są jednej klasy
-    # Następnie tasuje w ten sposób utworzone segmenty
-    X_train, y_train, chunk_train_sizes = shuffle_dataset_with_chunk_sizes(X_train, y_train, chunk_length_train, std_div)
-    X_test, y_test, chunk_test_sizes = shuffle_dataset_with_chunk_sizes(X_test, y_test, chunk_length_test, std_div)
-    X_val, y_val, chunk_val_sizes = shuffle_dataset_with_chunk_sizes(X_val, y_val, chunk_length_test, std_div)
+    # Łączymy obiekty jednej klasy w elements_in_class elementów
+    X_train, y_train, chunk_train_sizes = aggregate_by_class(X_train, y_train, elements_in_class)
+    X_test, y_test, chunk_test_sizes = aggregate_by_class(X_test, y_test, elements_in_class)
+    X_val, y_val, chunk_val_sizes = aggregate_by_class(X_val, y_val, elements_in_class)
 
+    # Zamienianie stringów na int
+    y_train, string_to_int = map_strings_to_ints(y_train)
+    y_test, string_to_int = map_strings_to_ints(y_test, string_to_int)
+    y_val, string_to_int = map_strings_to_ints(y_val, string_to_int)
+
+    # Poprawiamy rozmiar danych do 2d
+    X_train, y_train, chunk_train_sizes = reshape_data(X_train, y_train, chunk_train_sizes)
+    X_test, y_test, chunk_test_sizes = reshape_data(X_test, y_test, chunk_test_sizes)
+    X_val, y_val, chunk_val_sizes = reshape_data(X_val, y_val, chunk_val_sizes)
+    
     # Wyświetlamy zlabelowane dane oraz każdy ich wymiar
     if(visualise_processed_data == True):
         # Wizualizacja każdego wymiaru danych z osobna
@@ -280,10 +280,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, std_div = 0,
     chunks, chunks_y, chunks_y_matrix = create_dataset_chunks(chunk_train_sizes, X_train, y_train, y_train_matrix)
     chunks_test, chunks_test_y, _ = create_dataset_chunks(chunk_test_sizes, X_test, y_test)
     chunks_val, chunks_val_y, _ = create_dataset_chunks(chunk_val_sizes, X_val, y_val)
-    
-    #print([ (len(chunk), chunk[0]) for chunk in chunks_y])
-    #print(chunk_train_sizes)
-    
+
     # Dzielimy dane oraz labele na chunki długości elementów listy chunk_train_sizes (ew. test)
     chunks_shuffled, chunks_y_shuffled, chunks_y_matrix_shuffled = create_dataset_chunks(chunk_train_sizes, X_train_shuffled, y_train_shuffled, y_train_matrix_shuffled)
     chunks_test_shuffled, chunks_test_y_shuffled, _ = create_dataset_chunks(chunk_test_sizes, X_test_shuffled, y_test_shuffled)
