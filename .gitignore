@@ -4,6 +4,8 @@ obsidian_vault/
 klasyfikator_vault/
 */.ipynb_checkpoints/*
 */__pycache__/*
+*/.ipynb_checkpoints/
+*/__pycache__/
 
 # Ignorowanie zbiorów danych
 datasets/
