@@ -6,6 +6,10 @@ klasyfikator_vault/
 */__pycache__/*
 */.ipynb_checkpoints/
 */__pycache__/
+libraries/FCM/__pycache__/
+libraries/FCM/.ipynb_checkpoints/
+libraries/tests/__pycache__/
+libraries/tests/.ipynb_checkpoints/
 
 # Ignorowanie zbiorów danych
 datasets/
