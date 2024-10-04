@@ -119,10 +119,10 @@ def plot_metrics_by_metrics(output_list, output_list_name):
 def plot_metrics_by_dataset(output_list, output_list_name):
     # Zbieramy statystyki dla każdego słownika
     metric_names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
-
+    metric_names_plot = ['Accuracy - segments', 'Precision - segments', 'Recall - segments', 'F1-Score - segments', 'Accuracy - points', 'Precision - points', 'Recall - points', 'F1-Score - points']
     # Tworzenie wykresów obok siebie (jeden subplot na dataset)
     n_datasets = len(output_list)
-    fig, axes = plt.subplots(1, n_datasets, figsize=(6 * n_datasets, 6))  # 6 jednostek szerokości na każdy subplot
+    fig, axes = plt.subplots(1, n_datasets, figsize=(3/2 * len(metric_names_plot) * n_datasets, 6))  # 6 jednostek szerokości na każdy subplot
     
     if n_datasets == 1:
         axes = [axes]  # Dla przypadku, gdy mamy tylko jeden dataset, musimy zamienić to na listę.
@@ -131,27 +131,29 @@ def plot_metrics_by_dataset(output_list, output_list_name):
     for i, data_dict in enumerate(output_list):
         ax = axes[i]  # Pobieramy odpowiedni subplot
         name = output_list_name[i]
-        metrics = {name: [] for name in metric_names}
+        metrics = {name: [] for name in metric_names_plot}
         labels = []
 
         for key, value in data_dict.items():
             # Pobierz statystyki (czwarty element listy)
             stats = value[3]
+            stats_points = value[4]
             labels.append(key)  # Nazwy do osi X dla danego datasetu
             
             # Zapisz metryki
             for metric in metric_names:
-                metrics[metric].append(stats.get(metric, 0))  # Domyślna wartość to 0, jeśli brak metryki
+                metrics[metric + ' - segments'].append(stats.get(metric, 0))  # Domyślna wartość to 0, jeśli brak metryki
+                metrics[metric + ' - points'].append(stats_points.get(metric, 0))  # Domyślna wartość to 0, jeśli brak metryki
 
         # Tworzenie wykresów dla każdej z metryk
-        x = np.arange(len(labels))  # Oś X (indeksy dla kluczy)
-        width = 0.2  # Szerokość słupków
+        x = np.arange(len(labels) )  # Oś X (indeksy dla kluczy)
+        width = 0.07  # Szerokość słupków
         
         # Przesunięcia dla każdej z metryk, aby słupki się nie nakładały
-        offsets = np.linspace(-width, width, len(metric_names))
-
+        offsets = np.linspace(-len(metric_names_plot)*width/2, len(metric_names_plot)*width/2 , len(metric_names_plot))
+        
         # Rysowanie słupków dla każdej metryki
-        for j, metric in enumerate(metric_names):
+        for j, metric in enumerate(metric_names_plot):
             bars = ax.bar(x + offsets[j], metrics[metric], width, label=metric)
             
             # Dodawanie wartości nad słupkami
@@ -161,7 +163,8 @@ def plot_metrics_by_dataset(output_list, output_list_name):
                     bar.get_x() + bar.get_width() / 2,  # Pozycja X (środek słupka)
                     yval,  # Pozycja Y (na górze słupka)
                     f'{yval:.2f}',  # Tekst do wyświetlenia
-                    ha='center', va='bottom'  # Wyrównanie tekstu
+                    ha='center', va='bottom',  # Wyrównanie tekstu
+                    fontdict={'fontsize': 6, 'fontweight': 'bold', 'color': 'black'}
                 )
 
         # Konfiguracja wykresu dla danego datasetu
@@ -546,15 +549,18 @@ def visualise_labeled_data_all_dimensions(data, y, dim):
 #################################################################################
 
 
-def create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics):
+def create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, statistics_single_points):
     return {
         'Silhouette Score': silhouette_avg,
         #'Davies-Bouldin Score': davies_bouldin_avg,
         'Rand Score': rand,
         'Tested fpc': fpc,
-        'Accuracy': statistics['Accuracy'],
-        'Precision': statistics['Precision'],
-        'Recall': statistics['Recall']
+        'Accuracy - segments': statistics['Accuracy'],
+        'Precision - segments': statistics['Precision'],
+        'Recall - segments': statistics['Recall'],
+        'Accuracy - points ': statistics_single_points['Accuracy'],
+        'Precision - points': statistics_single_points['Precision'],
+        'Recall - points': statistics_single_points['Recall']
     }
 
 def compare_models_statistics(statistics):

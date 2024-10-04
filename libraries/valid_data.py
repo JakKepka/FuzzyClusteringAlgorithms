@@ -7,7 +7,7 @@ from sklearn.datasets import make_blobs
 from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 from skfuzzy.cluster import cmeans, cmeans_predict
-from libraries.classify_segments import validate_segments, validate_segments_knn, calculate_statistics
+from libraries.classify_segments import validate_segments, validate_labels, validate_labels_knn, validate_segments_knn, calculate_statistics
 from libraries.classify_segments import classify_points_knn_eliminate_minor_class
 #################################################################################
 
@@ -104,11 +104,14 @@ def valid_data_ifcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m
     else:
          # Statystki dla klasyfikacji segmentów
         statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+    
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels(chunks, chunks_y, centroids, fuzzy_labels)
 
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
+    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels, statistics_points
 
 def valid_data_issfcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m=2, error=0.05, metric='euclidean', print_data=False):
     from libraries.FCM.ISSFCM import predict_data_issfcm
@@ -136,10 +139,13 @@ def valid_data_issfcm(chunks, centroids, chunks_y, clusters_for_each_class=None,
          # Statystki dla klasyfikacji segmentów
         statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
         
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels(chunks, chunks_y, centroids, fuzzy_labels)
+
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
+    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels, statistics_points
 
 def valid_data_dissfcm(chunks, centroids, chunks_y, clusters_for_each_class=None, m=2, error=0.05, metric='euclidean', print_data=False):
     from libraries.FCM.DISSFCM import predict_data_dissfcm
@@ -163,14 +169,18 @@ def valid_data_dissfcm(chunks, centroids, chunks_y, clusters_for_each_class=None
     
         # Klasyfikujemy segmenty
         statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+
     else:
         # Statystki dla klasyfikacji segmentów
         statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
-        
+    
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels(chunks, chunks_y, centroids, fuzzy_labels)
+
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels 
+    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels, statistics_points
     
 def valid_data_fcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclidean', print_data=False):
 
@@ -185,12 +195,16 @@ def valid_data_fcm(chunks, centroids, chunks_y, m=2, error=0.05, metric='euclide
     davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
     rand = rand_score(y_extended, cluster_membership)
 
+    # Klasyfikacja segmentów oraz ich validacja
     statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
-    
+
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels(chunks, chunks_y, centroids, fuzzy_labels)
+
     if(print_data == True): 
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, fpc, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels
+    return  silhouette_avg, davies_bouldin_avg, rand, fpc, statistics, cluster_to_class, fuzzy_labels, statistics_points
 
 def valid_data_knn(chunks, chunks_y, knn_model, print_data=False):
 
@@ -208,10 +222,13 @@ def valid_data_knn(chunks, chunks_y, knn_model, print_data=False):
     # Statystki dla klasyfikacji segmentów
     statistics = validate_segments_knn(chunks, chunks_y, cluster_membership)
 
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels_knn(chunks, chunks_y, cluster_membership)
+
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, statistics
+    return  silhouette_avg, davies_bouldin_avg, rand, statistics, statistics_points
 
 def valid_data_rocket(chunks, chunks_y, X_test_panel, rocket_classifier, print_data=False):
 
@@ -229,7 +246,10 @@ def valid_data_rocket(chunks, chunks_y, X_test_panel, rocket_classifier, print_d
     # Statystki dla klasyfikacji segmentów
     statistics = validate_segments_knn(chunks, chunks_y, cluster_membership)
 
+    # Klasyfikacja punktów oraz ich validacja
+    statistics_points = validate_labels_knn(chunks, chunks_y, cluser_membership)
+
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
 
-    return  silhouette_avg, davies_bouldin_avg, rand, statistics
+    return  silhouette_avg, davies_bouldin_avg, rand, statistics, statistics_points
