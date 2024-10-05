@@ -5,3 +5,6 @@ klasyfikator_vault/
 
 # Ignorowanie zbiorów danych
 datasets/
+
+#Ignorowanie chekpoint'ów
+.ipynb_checkpoints/

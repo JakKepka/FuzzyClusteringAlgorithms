@@ -21,6 +21,7 @@ def sum_probability_for_clusters(fuzzy_labels):
 
     return summed_labels
 
+# Zlicza popularność clustrów, ile punktów należy do clustra oraz sumę ich prawdopodobieństwa
 def popularity_of_clusters(fuzzy_labels, n_clusters):
 
     cluster_membership = np.argmax(fuzzy_labels, axis=0)

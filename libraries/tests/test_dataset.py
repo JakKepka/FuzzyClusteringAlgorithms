@@ -20,11 +20,13 @@ from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot
 from libraries.plot_functions import create_set_for_stats, compare_models_statistics, overview_plot
 from tslearn.datasets import UCR_UEA_datasets
 from libraries.chunks import create_chunks, create_dataset_chunks, merge_chunks
-from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn, valid_data_rocket
+from libraries.valid_data import  valid_data_fcm, valid_data_ifcm, valid_data_issfcm, valid_data_dissfcm, valid_data_knn, valid_data_svm
 from libraries.process_data import adjust_dataframe, aggregate_by_class
 
 # Diffrent classification algorithms
 from sktime.classification.kernel_based import RocketClassifier
+from sklearn import svm
+from sklearn.metrics import accuracy_score, classification_report
 
 # FCM's
 from libraries.FCM.IFCM import incremental_fuzzy_cmeans
@@ -168,46 +170,33 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
     execution_time = end_time - start_time
     print(f"Czas wykonania: {execution_time} sekund")
     
-    ###########################################################################################################
 
     ###########################################################################################################
-    ## ROCKET
+    ## SVM
     ## Początek pomiaru czasu
-    #start_time = time.time()
-    #
-    #print(f'  RocketClassifier')
-#
-    #n_samples, n_features = X_train.shape
-    ## Konwersja danych 2D na panel danych (sktime)
-    #X_train_panel = pd.DataFrame({f'feature_{i}': [pd.Series(X_train[j, :]) for j in range(n_samples)] 
-    #                              for i in range(n_features)})
-#
-    #n_samples, n_features = data_test.shape
-    #X_test_panel = pd.DataFrame({f'feature_{i}': [pd.Series(data_test[j, :]) for j in range(n_samples)] 
-    #                             for i in range(n_features)})
-#
-    ## Inicjalizacja RocketClassifier
-    #rocket_classifier = RocketClassifier()
-    #
-    ## Trenowanie modelu na danych treningowych
-    #rocket_classifier.fit(X_train_panel, y_train)
-#
-    #cluster_membership = rocket_classifier.predict(X_test_panel)
-    #
-    #silhouette_avg, davies_bouldin_avg, rand, statistics = valid_data_rocket(chunks_test, chunks_test_y, X_test_panel, rocket_classifier)
-    #
-    #models['ROCKET'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)
-    #
-    #if (visualise_non_incremental_data == True):
-    #    plot_pca_standard(data_test, cluster_membership)
-    #
-    ## Koniec pomiaru czasu
-    #end_time = time.time()
-    #
-    ## Wyświetlenie czasu wykonania
-    #execution_time = end_time - start_time
-    #print(f"Czas wykonania: {execution_time} sekund")
-###########################################################################################################
+    start_time = time.time()
+    print(f'  SVM')
+
+    # Tworzenie modelu SVM (z jądrem RBF - radial basis function, który jest dobry do danych czasowych)
+    clf_svm = svm.SVC(kernel='rbf', C=1.0, gamma='scale', decision_function_shape='ovo')
+    
+    #Trenowanie modelu SVM
+    clf_svm.fit(X_train, y_train)
+
+    silhouette_avg, davies_bouldin_avg, rand, statistics, stats_points = valid_data_svm(chunks_test, chunks_test_y, clf_svm)
+
+    models['SVM'] = create_set_for_stats(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics, stats_points)
+    
+    if (visualise_non_incremental_data == True):
+        plot_pca_standard(data_test, cluster_membership)
+
+    # Koniec pomiaru czasu
+    end_time = time.time()
+    
+    # Wyświetlenie czasu wykonania
+    execution_time = end_time - start_time
+    print(f"Czas wykonania: {execution_time} sekund")
+    ###########################################################################################################
 
     
     # porównanie wyników

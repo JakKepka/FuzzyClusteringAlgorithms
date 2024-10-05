@@ -155,8 +155,8 @@ def fuzzy_cmeans(data, c, m, error, maxiter, metric = 'euclidean', init_centroid
 def fuzzy_cmeans_predict(test_data, cntr_trained, m, error, maxiter, metric='euclidean', init=None, seed=None):
     c = cntr_trained.shape[0]
 
-
     test_data = test_data.T
+    
     # Setup u0
     fuzzy_labels = init
     if init is None:

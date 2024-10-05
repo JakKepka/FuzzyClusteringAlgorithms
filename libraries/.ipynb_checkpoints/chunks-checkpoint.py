@@ -1,5 +1,6 @@
 import numpy as np
 
+# Tworzeniu chunków z danych, rozmiary chunków pochodza z listy chunk_sizes
 def create_chunks(chunk_sizes, matrix):
     # Rozmiary kolejnych chunków, mogą mieć różne wielkości. Następnie ze względu na te liczby dzielone są chunki
     chunks = []
@@ -11,6 +12,7 @@ def create_chunks(chunk_sizes, matrix):
 
     return chunks
 
+# Utwórz zestaw chunków dla danych
 def create_dataset_chunks(chunk_sizes, X, y, y_matrix=None):
     # Rozmiary kolejnych chunków, mogą mieć różne wielkości. Następnie ze względu na te liczby dzielone są chunki
     chunks = create_chunks(chunk_sizes, X)
@@ -22,6 +24,7 @@ def create_dataset_chunks(chunk_sizes, X, y, y_matrix=None):
 
     return chunks, chunks_y, chunks_y_matrix
 
+# Łączenie chunków w dataset
 def merge_chunks(chunks, chunks_y):
     # Inicjalizacja pustych list na połączone dane
     data_set = []

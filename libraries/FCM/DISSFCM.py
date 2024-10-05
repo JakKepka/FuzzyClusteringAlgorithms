@@ -220,8 +220,9 @@ def dynamic_incremental_semi_supervised_fuzzy_cmeans_predict(test_data, cntr_tra
 
     # Final calculations
     error = np.linalg.norm(u - u2)
+    
     fpc = _fp_coeff(u)
-
+    
     return u, u0, d, jm, p, fpc 
     
 def semi_supervised_cmeans_predict0(test_data, cntr, u_old, c, m, metric):
@@ -477,7 +478,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
     
             # Numer iteracji pętli
             split_while_iteration = 0
-            
+
             # Pętla Split
             while (V_max > V_max_prev[current_class] and count > 0) and split_while_iteration < 10:
                 # Funkcja Split, dzieli centroidy/generuje nowe.
@@ -501,6 +502,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
     
                 # Zwiększamy numer iteracji pętli.
                 split_while_iteration += 1
+ 
                    
             # Zapamiętujemy V_max z poprzedniego chunk'a
             V_max_prev[current_class] = V_max

@@ -9,6 +9,8 @@ import numpy as np
 from skfuzzy.cluster import cmeans, cmeans_predict
 from libraries.classify_segments import validate_segments, validate_labels, validate_labels_knn, validate_segments_knn, calculate_statistics
 from libraries.classify_segments import classify_points_knn_eliminate_minor_class
+
+
 #################################################################################
 
                             ##Statistics##
@@ -230,13 +232,13 @@ def valid_data_knn(chunks, chunks_y, knn_model, print_data=False):
 
     return  silhouette_avg, davies_bouldin_avg, rand, statistics, statistics_points
 
-def valid_data_rocket(chunks, chunks_y, X_test_panel, rocket_classifier, print_data=False):
+def valid_data_svm(chunks, chunks_y, svm_classifier, print_data=False):
 
     # Scalamy segmenty w jeden dataset    
     data_test, y_extended = merge_chunks(chunks, chunks_y)
 
     # Przewidujemy klasy dla danych testowych
-    cluster_membership = rocket_classifier.predict(X_test_panel)
+    cluster_membership = svm_classifier.predict(data_test)
     
     # Wyznaczenie wskaźników jakości
     silhouette_avg = silhouette_score(data_test, cluster_membership)
@@ -247,7 +249,7 @@ def valid_data_rocket(chunks, chunks_y, X_test_panel, rocket_classifier, print_d
     statistics = validate_segments_knn(chunks, chunks_y, cluster_membership)
 
     # Klasyfikacja punktów oraz ich validacja
-    statistics_points = validate_labels_knn(chunks, chunks_y, cluser_membership)
+    statistics_points = validate_labels_knn(chunks, chunks_y, cluster_membership)
 
     if(print_data == True):
         print_statistics(silhouette_avg, davies_bouldin_avg, rand, 0.0, statistics)

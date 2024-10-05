@@ -15,6 +15,7 @@ from libraries.process_data import merge_chunks
 #################################################################################
 
 
+# Przypisuje clustry do klas
 def assign_clusters_to_classes(fuzzy_labels, centroids, y, n_classes):
     # Zliczam pierwsze punkty do jakich klas należą, następnie dopiero patrzę na segmenty.
     cluster_membership = np.argmax(fuzzy_labels, axis=0)
@@ -27,7 +28,7 @@ def assign_clusters_to_classes(fuzzy_labels, centroids, y, n_classes):
     # Zwracamy tablicę z przyporządkowanymi klasami dla każdego clustra.
     return np.argmax(count_points, axis=1)
 
-
+# Przypisuje clasy do punktów
 def assign_class_to_points(fuzzy_labels, cluster_to_class):
     cluster_membership = np.argmax(fuzzy_labels, axis=0)
 
@@ -36,7 +37,7 @@ def assign_class_to_points(fuzzy_labels, cluster_to_class):
     result[:] = cluster_to_class[cluster_membership]
     return result
 
-
+# Klasyfikacja punktów
 def classify_points(trained_x, trained_y, validation_x, validation_y, centroids, metric, m, n_classes, classify_whole_segment = False, validation_x_chunked = None):
     # przynależności wszystkich punktów ze zbioru treningowego do centroidów
     fuzzy_labels_trained = create_labels(trained_x, centroids, metric, m)
@@ -64,18 +65,9 @@ def classify_points(trained_x, trained_y, validation_x, validation_y, centroids,
     
     return validation_classified
     
-
+# Głosowanie większościowe, elimując najmniejpopularne klasy, zwraza ostateczną klase po głosowaniu
 def majority_vote_with_elimination(class_vectors, n_classes):
-    """
-    Przeprowadza głosowanie większościowe z eliminacją najmniej popularnych klas.
-    
-    Args:
-    class_vectors (list of list): Lista wektorów indeksów klas uporządkowanych według przynależności
-                                  dla każdego punktu walidacyjnego.
-    
-    Returns:
-    int: Ostateczna wybrana klasa po głosowaniu.
-    """
+
     counter = 0
     mark_deletion = np.zeros(n_classes)
     while True:
@@ -109,18 +101,8 @@ def majority_vote_with_elimination(class_vectors, n_classes):
         
         counter += 1
 
-
-def classify_segment(val_matrix, prototype_to_class ,n_classes, centroids):
-    """
-    Klasyfikuje segment danych
-    
-    Args:
-    val_matrix (numpy.ndarray): Macierz przynależności danych walidacyjnych, rozmiar [n_val x K].
-    prototype_to_class (list): Lista mapująca każdy prototyp na odpowiednią klasę.
-    
-    Returns:
-    list: Lista sklasyfikowanych klas dla każdej serii czasowej z walidacji.
-    """
+# Zwraca listę sklasyfikowanych segmentów
+def classify_segment(val_matrix, prototype_to_class, n_classes, centroids):
 
     n_val = val_matrix.shape[1]
     
@@ -186,6 +168,7 @@ def classify_points_knn_eliminate_minor_class(centroids, n_classes, validation_x
 #################################################################################
 
 
+# Oblicza statystki
 def calculate_statistics(y_true, y_pred, y_proba=None):
     stats = {}
 
@@ -260,7 +243,7 @@ def assign_clusters_to_classes_count_summary_labels(fuzzy_labels, centroids, y, 
 #################################################################################
 
 
-# Dla każdego segmentu podaje najczęściej występujący cluster
+# Dla każdego segmentu podaje najczęściej występujący cluster, w sesnsie liczości punktów
 # Klasyfikujemy punkty przy pomocy modelu następnie
 def get_segments_labels_count_single_points(chunks, centroids, cluster_membership):
 
@@ -282,7 +265,7 @@ def get_segments_labels_count_single_points(chunks, centroids, cluster_membershi
         
     return segment_clusters
 
-
+# Dla każdego segmentu podaje najczęściej występujący cluster w sensie sumy prawdopodobieństw
 def get_segments_labels_count_summary_labels(chunks, centroids, fuzzy_labels):
 
     fuzzy_labels = fuzzy_labels.T
@@ -351,6 +334,7 @@ def get_segments_clusters_labels_count_summary_labels(chunks, centroids, fuzzy_l
         
     return segment_clusters
 
+# Znajduje najcześciej występujący element z listy
 def find_most_common(lst):
     # Tworzymy słownik do zliczania wystąpień liczb
     counts = {}
@@ -366,7 +350,8 @@ def find_most_common(lst):
     most_common = max(counts, key=counts.get)
     
     return most_common
-    
+
+# Zwraca najczęściej wystepujący element dla każdego chunk'u
 def get_label_of_segment_knn(chunks, cluster_membership):
 
     most_common_elements = []
@@ -491,10 +476,5 @@ def validate_segments_(chunks, chunks_y, centroids, fuzzy_labels):
     cluster_to_class = assign_clusters_to_classes_count_summary_labels(fuzzy_labels, centroids, y)
     
     segment_labels = [find_best_fitting_class(cluster_to_class, clusters_count, n_classes) for clusters_count in segment_clusters]
-    #print('segment clusters', [int(x) for x in segment_labels])
-    print(cluster_to_class)
-    print([int(x) for x in segment_labels])
-    #print('y',[int(x) for x in labels])
-    #print('segment_labels', [int(x) for x in segment_labels])
     
     return calculate_statistics(labels, segment_labels)
