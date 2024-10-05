@@ -162,7 +162,7 @@ def valid_data_dissfcm(chunks, centroids, chunks_y, clusters_for_each_class=None
     davies_bouldin_avg = davies_bouldin_score(data_test, cluster_membership)
     rand = rand_score(y_extended, cluster_membership)
 
-    if(clusters_for_each_class is None):
+    if(clusters_for_each_class is not None):
         # Liczba klas
         n_classes = len(clusters_for_each_class)
     
