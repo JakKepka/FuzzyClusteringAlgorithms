@@ -46,24 +46,14 @@ def pad_or_trim_list(lst, padding_length):
         lst = np.random.choice(lst, padding_length, replace=False).tolist()
     
     return lst
-
+# Dopasuj każdą listę w DataFrame do zadanej długości padding_length
 def adjust_dataframe(df, padding_length):
-    """Dopasuj każdą listę w DataFrame do zadanej długości padding_length."""
-    return df.applymap(lambda x: pad_or_trim_list(x.tolist(), padding_length))
 
+    return df.applymap(lambda x: pad_or_trim_list(x.tolist(), padding_length))
+    
+# Funkcja grupuje dane według etykiet z DataFrame y i tworzy nowe obiekty składające się z połączonych elementów z tej samej klasy.
 def aggregate_by_class(df, y, l):
-    """
-    Funkcja grupuje dane według etykiet z DataFrame y i tworzy nowe obiekty składające się z połączonych
-    elementów z tej samej klasy.
-    
-    Args:
-    df (pd.DataFrame): DataFrame zawierający dane.
-    y (pd.DataFrame): DataFrame zawierający etykiety (jedna kolumna).
-    l (int): Docelowa liczba obiektów dla każdej klasy (połączeń).
-    
-    Returns:
-    Tuple: DataFrame z nowymi połączonymi obiektami, odpowiadającymi im etykietami oraz lista rozmiarów chunków.
-    """
+
     # Upewnij się, że y to jedna kolumna
     if y.shape[1] != 1:
         raise ValueError("y musi być DataFrame z jedną kolumną.")

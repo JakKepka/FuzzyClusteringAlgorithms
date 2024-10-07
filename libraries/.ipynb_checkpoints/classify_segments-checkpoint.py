@@ -235,6 +235,19 @@ def assign_clusters_to_classes_count_summary_labels(fuzzy_labels, centroids, y, 
     # Zwracamy tablicę z przyporządkowanymi klasami dla każdego clustra.
     return np.argmax(count_points, axis=1)
 
+def clusters_list_to_set(clusters_to_class):
+    clusters_for_each_class = {}
+    
+    # Iteracja przez listę clusters_to_class
+    for cluster_index, class_id in enumerate(clusters_to_class):
+        # Jeśli klasa nie istnieje w słowniku, dodaj ją
+        if class_id not in clusters_for_each_class:
+            clusters_for_each_class[class_id] = []
+        
+        # Dodaj indeks klastra do odpowiedniej klasy
+        clusters_for_each_class[class_id].append(cluster_index)
+    
+    return clusters_for_each_class
 
 #################################################################################
 
@@ -382,7 +395,35 @@ def get_label_of_segment_knn(chunks, cluster_membership):
 
 #################################################################################
 
+# Oblicza statystyki dla zklasyfikowanych segmentów. W pierwszym przypadku (warunku if) oblicza wyniki przy założeniu że clustry przypisane są tak jak w cluster_for_each_class (metoda indukcyjna), drugi przypadek sam wyznacza przyporządkowanie clustrów na podstawie danych. Trzeciy warunek nie korzysta z metody głosowania turowego.
+def segment_statistics(clusters_for_each_class, auto_classify_segments, centroids, n_classes, chunks, chunks_y, predict_data_algorithm, fuzzy_labels):
+    
+    if(clusters_for_each_class is not None and auto_classify_segments == False):
+    # Korzystamy z przypisanych clustrów w wersji indukcyjnej.
+        # Głosowanie większościowe
+        validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, chunks, predict_data_algorithm, clusters_for_each_class = clusters_for_each_class)
+    
+        # Klasyfikujemy segmenty
+        statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+    elif(auto_classify_segments == True):
+    # Korzystamy z przypisanych clustrów w wersji empirycznej.
+        # Statystki dla klasyfikacji segmentów
+        statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
 
+        clusters_for_each_class = clusters_list_to_set(cluster_to_class)
+        
+        # Głosowanie większościowe
+        validation_y_predicted, cluster_to_class = classify_points_knn_eliminate_minor_class(centroids, n_classes, chunks, predict_data_algorithm, clusters_for_each_class = clusters_for_each_class)
+    
+        # Klasyfikujemy segmenty
+        statistics = calculate_statistics(np.concatenate(chunks_y[:]), validation_y_predicted)  
+    else:
+    # Implementacja clustrów, bez głosowania większościwoego.
+        # Statystki dla klasyfikacji segmentów
+        statistics, cluster_to_class = validate_segments(chunks, chunks_y, centroids, fuzzy_labels)
+
+    return statistics, cluster_to_class
+    
 # Łączy powyższe 2 funkcje. Zwraca klasy dla segmentów
 def validate_segments(chunks, chunks_y, centroids, fuzzy_labels):
 

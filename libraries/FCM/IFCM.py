@@ -249,14 +249,13 @@ def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validatio
     diagnosis_tools = DiagnosisTools()
     diagnosis_iterations = []
     
-    
     # Mergujemy chunki w dataset
     X_validation, y_validation = merge_chunks(validation_chunks, validation_chunks_y)
     # Mergujemy chunki w dataset
     X_train, y_train = merge_chunks(chunks, chunks_y)
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m, error, metric, print_statistics)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m=m, error=error, metric=metric, print_data = print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
 
@@ -283,7 +282,7 @@ def train_incremental_local_fuzzy_cmeans(n_clusters, chunks, chunks_y, validatio
                 plot_func(data, centroids, fuzzy_labels)
             
             # Validacja danych
-            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m, error, metric, print_statistics)
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m=m, error=error, metric=metric, print_data = print_statistics)
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
             diagnosis_iterations.append(diagnosis_iteration)
@@ -335,7 +334,7 @@ def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, valida
     diagnosis_iterations = []
 
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m=m, error=error, metric=metric, print_data=print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
@@ -350,7 +349,7 @@ def train_incremental_fuzzy_cmeans(n_clusters, chunks, validation_chunks, valida
                 plot_func(data, centroids, fuzzy_labels)
     
             # Validacja danych
-            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m=m, error=error, metric=metric, print_data=print_statistics)
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
             diagnosis_iterations.append(diagnosis_iteration)
@@ -396,7 +395,7 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     diagnosis_iterations = []
     
     # Najlepsze centroidy inicjalizacja
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m=m, error=error, metric=metric, print_data=print_statistics)
     best_centroids = init_centroids
     best_centroids_statistics = statistics
     
@@ -408,7 +407,7 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
     if(visualise_data):
         visualize_all(data, centroids, fuzzy_labels)
         
-    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, print_statistics)
+    silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m=m, error=error, metric=metric, print_data=print_statistics)
     diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
     diagnosis_tools.add_centroids(centroids)
 
@@ -433,7 +432,7 @@ def train_incremental_fuzzy_cmeans_extending_data(n_clusters, chunks, validation
                 plot_func(data, centroids, fuzzy_labels)
     
             # Validacja danych
-            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m, error, metric, print_statistics)
+            silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_ifcm(validation_chunks, centroids, validation_chunks_y, m=m, error=error, metric=metric, print_data=print_statistics)
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
             diagnosis_tools.add_centroids(centroids)
             diagnosis_iterations.append(diagnosis_iteration)
