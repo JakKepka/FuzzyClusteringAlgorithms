@@ -8,7 +8,6 @@ from IPython.display import clear_output
 from libraries.plot_functions import plot_pca, plot_pca_cluster
 from libraries.valid_data import valid_data_ifcm
 from libraries.process_data import merge_chunks
-from libraries.semi_supervised_matrix import upload_semi_supervised_matrix
 from libraries.chunks import create_chunks
 from libraries.clusters import count_points_for_clusters, sum_probability_for_clusters, popularity_of_clusters
 from libraries.plot_functions import visualize_all

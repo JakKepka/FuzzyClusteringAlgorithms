@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import StratifiedShuffleSplit
 
 
 
@@ -137,6 +138,41 @@ def shuffle_dataset(X_train, y_train):
     # Losowo przetasowujemy X_train i y_train w sposób spójny
     X_train_shuffled, y_train_shuffled = shuffle(X_train, y_train, random_state=42)
     return X_train_shuffled, y_train_shuffled
+
+
+def stratified_chunks(X, y, chunks_length):
+    # Sprawdzamy czy suma chunks_length jest równa liczbie punktów danych
+    if sum(chunks_length) != len(X):
+        raise ValueError("Suma wartości chunks_length musi być równa liczbie punktów w X i y.")
+    
+    # Zmieniamy dane na numpy arrays dla łatwiejszej manipulacji
+    X = np.array(X)
+    y = np.array(y)
+
+    # Przechowujemy wyniki
+    X_chunks = []
+    y_chunks = []
+
+    # Kopie danych do przetwarzania
+    X_remaining = X.copy()
+    y_remaining = y.copy()
+
+    # Algorytm stratyfikowanego podziału na chunki
+    for chunk_size in chunks_length:
+        # Stosujemy StratifiedShuffleSplit, aby wylosować próbkę o wielkości chunk_size
+        sss = StratifiedShuffleSplit(n_splits=1, train_size=chunk_size, random_state=None)
+        for chunk_idx, _ in sss.split(X_remaining, y_remaining):
+            X_chunk, y_chunk = X_remaining[chunk_idx], y_remaining[chunk_idx]
+            
+            # Zapisujemy chunk
+            X_chunks.append(X_chunk)
+            y_chunks.append(y_chunk)
+            
+            # Usuwamy wylosowane dane, aby podzielić resztę
+            X_remaining = np.delete(X_remaining, chunk_idx, axis=0)
+            y_remaining = np.delete(y_remaining, chunk_idx, axis=0)
+
+    return X_chunks, y_chunks
     
 def merge_chunks(chunks, chunks_y):
     # Inicjalizacja pustych list na połączone dane

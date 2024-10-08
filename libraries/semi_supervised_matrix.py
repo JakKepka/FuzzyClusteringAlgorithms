@@ -28,7 +28,7 @@ def create_semi_supervised_matrix(X, y, n_clusters, injection=1.0):
 
     return y_matrix, init_centroids, clusters_for_each_class
 
-def upload_semi_supervised_matrix(y, new_cluster_id, clusters_for_each_class, n_clusters, injection):
+def add_cluster_update_semi_supervised_matrix(y, new_cluster_id, clusters_for_each_class, n_clusters, injection):
 
     idx = len(clusters_for_each_class)
     
@@ -45,3 +45,26 @@ def upload_semi_supervised_matrix(y, new_cluster_id, clusters_for_each_class, n_
     
     return y_matrix, clusters_for_each_class
 
+def delete_cluster_update_semi_supervised_matrix(y, new_cluster_id, clusters_for_each_class, n_clusters, injection):
+
+    idx = len(clusters_for_each_class)
+    
+    # Przechodzimy przez każdy zakres klastra w clusters_for_each_class
+    for i in range(len(clusters_for_each_class)):
+        k = clusters_for_each_class[i].stop 
+        n = clusters_for_each_class[i].start
+        
+        # Sprawdzamy, czy new_cluster_id znajduje się w bieżącym zakresie
+        if new_cluster_id in clusters_for_each_class[i]:
+            # Aktualizujemy zakres bieżącej klasy
+            clusters_for_each_class[i] = range(n, k-1)  # Usuwamy new_cluster_id z tego zakresu
+            idx = i  # Zapisujemy indeks klasy, z której usunięto klaster
+        
+        # Jeśli aktualny indeks jest większy niż idx, przesuwamy indeksy
+        if i > idx:
+            clusters_for_each_class[i] = range(n - 1, k - 1)  # Przesuwamy zakresy o 1 w dół
+    
+    # Tworzymy macierz semi-supervised po aktualizacji klastrów
+    y_matrix = label_vector_to_semi_supervised_matrix(y, n_clusters, clusters_for_each_class, injection)
+    
+    return y_matrix, clusters_for_each_class

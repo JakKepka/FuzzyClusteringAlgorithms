@@ -8,9 +8,8 @@ from IPython.display import clear_output
 # Plot functions
 from libraries.plot_functions import plot_pca, plot_pca_cluster, custom_plot
 from libraries.valid_data import valid_data_dissfcm
-from libraries.chunks import merge_chunks
-from libraries.semi_supervised_matrix import upload_semi_supervised_matrix
-from libraries.chunks import create_chunks
+from libraries.chunks import merge_chunks, create_chunks
+from libraries.semi_supervised_matrix import add_cluster_update_semi_supervised_matrix, delete_cluster_update_semi_supervised_matrix
 from libraries.clusters import count_points_for_clusters, sum_probability_for_clusters, popularity_of_clusters
 from libraries.clusters import compare_clusters
 #################################################################################
@@ -369,6 +368,95 @@ def split_centroids(data, fuzzy_labels, centroids, spliting_cluster, m=2, metric
 
     return z, new_centroids, new_fuzzy_labels.T
 
+#################################################################################
+
+                            ##Merge##
+
+#################################################################################
+
+# Zwraca który cluster sprawuje się najgorzej oraz gorzej niż lambda_.
+def which_to_merge(fuzzy_labels, lambda_=5):
+    # Transpozycja fuzzy_labels aby posiadało rozmiar (n, n_clusters)
+    fuzzy_labels = fuzzy_labels.T
+
+    minimum_sum = np.inf
+    minimum_id = -1
+    
+    for i in range(fuzzy_labels.shape[1]):
+        # Suma współczyników dla jednego clustra
+        fuzzy_sum = np.sum(fuzzy_labels[:,i])
+
+        if(minimum_sum > fuzzy_sum):
+            minimum_sum = fuzzy_sum
+            minimum_id = i
+
+    if(minimum_id != -1 and lambda_ > minimum_sum):
+        return i
+    else:
+        return -1
+        
+def find_nearest_centroid(centroids, merging_cluster, metric='euclidean'):
+    # Wybrany centroid, dla którego szukamy najbliższego
+    selected_centroid = centroids[merging_cluster].reshape(1, -1)
+    
+    # Obliczamy odległości pomiędzy wybranym centroidem a pozostałymi
+    distances = cdist(selected_centroid, centroids, metric=metric).flatten()
+    
+    # Ustawiamy odległość do samego siebie jako nieskończoność, aby go wykluczyć
+    distances[merging_cluster] = np.inf
+    
+    # Znajdujemy indeks najbliższego centroidu
+    nearest_index = np.argmin(distances)
+    nearest_centroid = centroids[nearest_index]
+    
+    return nearest_index, nearest_centroid
+
+def replace_centroids(centroids, merging_cluster_index, nearest_cluster_index, new_centroid):
+
+    centroids[merging_cluster_index] = new_centroid
+
+    centroids = np.delete(centroids, nearest_cluster_index - 1, axis=0)  # Usuwamy nearest_cluster
+    
+    return centroids
+
+# Funkcja łączy najmniej uzyteczny centroid z najbliższym sobie centroidem.
+def merge_centroids(data, fuzzy_labels, centroids, merging_cluster_index, m=2, metric='euclidean'):
+
+    # Transpozycja fuzzy_labels aby posiadało rozmiar (n, n_clusters)
+    fuzzy_labels = fuzzy_labels.T
+
+    # mergowany cluster
+    merging_cluster = centroids[merging_cluster_index]
+
+    # Wyznaczamy najbliższy centroid
+    nearest_cluster_index, nearest_centroid = find_nearest_centroid(centroids, merging_cluster_index, metric)
+
+    # Prawdopodobieństwo przyporządkowań dla dwóch zlepianych clustrów
+    fuzzy_labels_merging = fuzzy_labels[:, merging_cluster_index]
+    fuzzy_labels_nearest = fuzzy_labels[:, nearest_cluster_index]
+
+    # Suma ich prawodpodobieństw
+    fuzzy_labels_sum = fuzzy_labels_merging + fuzzy_labels_nearest
+    fuzzy_labels_sum_m = fuzzy_labels_sum ** m
+    
+    # Obliczamy nowy centroid
+    new_centroid = np.sum(fuzzy_labels_sum_m[:, np.newaxis] * data, axis=0) / np.atleast_2d(fuzzy_labels_sum_m.sum(axis=0)).T
+
+    # Zamieniamy 2 clustry na jeden. Nowo powstał cluster pojawia się na miejscu indeksu merging_cluster_index
+    centroids = replace_centroids(centroids, merging_cluster_index, nearest_cluster_index, new_centroid)
+
+    # Zamieniamy 2 fuzzy_lbels na jeden. Nowo powstał fuzzy_labels pojawia się na miejscu indeksu merging_cluster_index
+    fuzzy_labels = replace_centroids(fuzzy_labels.T, merging_cluster_index, nearest_cluster_index, fuzzy_labels_sum)
+ 
+    return centroids, fuzzy_labels
+
+# Sprawdza czy usuwany cluster jest ostatnim clustrem z klasy
+def check_if_last_cluster_from_class(clusters_for_each_class, cluster_id):
+
+    for i in range(len(clusters_for_each_class)):
+        if(cluster_id in clusters_for_each_class[i] and len(clusters_for_each_class[i]) == 1):
+            return True
+    return False
 
 #################################################################################
 
@@ -429,7 +517,7 @@ def reconstruction_error(data, fuzzy_labels, centroids, m=2):
 #       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_supervised, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca_cluster, metric='euclidean', init_centroids=init_centroids):    
+def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_classes, chunks, chunks_y, chunks_y_supervised, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca_cluster, metric='euclidean', init_centroids=init_centroids, merge=True):    
     # Początek pomiaru czasu
     start_time = time.time()
     centroids = init_centroids
@@ -503,7 +591,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
 
                 centroids = np.vstack((centroids[: clusters[V_max_cluster_id]], z, centroids[ clusters[V_max_cluster_id]+1:]))
           
-                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, clusters[V_max_cluster_id], clusters_for_each_class, n_clusters, injection)
+                y_train_matrix, clusters_for_each_class = add_cluster_update_semi_supervised_matrix(y_train, clusters[V_max_cluster_id], clusters_for_each_class, n_clusters, injection)
                      
                 chunks_y_supervised = create_chunks(chunk_train_sizes, y_train_matrix)
                 clusters = list(clusters_for_each_class[current_class])
@@ -521,7 +609,8 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
       
             # Zapamiętujemy V_max z poprzedniego chunk'a
             V_max_prev[current_class] = V_max
-                
+
+    
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m, error, metric, print_statistics)
             diagnosis_tools.add_elements(silhouette_avg, davies_bouldin_avg, fpc_test, rand, statistics)
@@ -574,7 +663,7 @@ def dynamic_local_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, n_c
 #       chunks_y - lista chunków labeli odpowiadających chunks. Labele nie są postaci listy tylko macierzy rozmytych przynależności do danej klasy.
 #       validation_chunks - dane validacyjne
 #       validation_chunks_y - labele dla danych validacyjnych
-def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids):    
+def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, chunks_y, chunks_y_matrix, validation_chunks, validation_chunks_y, clusters_for_each_class, injection, m=2, error=0.05, visualise_data=False, print_statistics=False, plot_func=plot_pca, metric='euclidean', init_centroids=init_centroids, merge=False):    
     # Początek pomiaru czasu
     start_time = time.time()
     # Inicjalizacja centroidów
@@ -608,7 +697,7 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
             chunk_y_supervised = chunks_y_matrix[count]
     
             # Algorytm ssfcm dla jednej iteracji, dla jednego chunk'a
-            centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = 'euclidean', init_centroid=centroids)
+            centroids, fuzzy_labels, dist, p, fpc, diagnosis_iteration = dynamic_incremental_semi_supervised_fuzzy_cmeans(data, chunk_y_supervised, c = n_clusters, m = m, error=error, maxiter=1000, metric = metric, init_centroid=centroids)
             
             # błąd rekonstrukcji
             V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
@@ -616,23 +705,50 @@ def dynamic_train_incremental_semi_supervised_fuzzy_cmeans(n_clusters, chunks, c
             if(visualise_data == True):
                 plot_func(data, centroids, fuzzy_labels)
 
-            # Liczba iteracji pętli
+            # Liczba iteracji pętli Split
             split_while_iteration = 0
-            
+
+            # Split
             while V_max > V_max_prev and count > 0 and split_while_iteration < 10:
                 # Funkcja Split, dzieli centroidy/generuje nowe.
-                z, centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric='euclidean', maxiter=100, error=0.05)
+                z, centroids, fuzzy_labels = split_centroids(data, fuzzy_labels, centroids, V_max_cluster_id, m=m, metric=metric, maxiter=100, error=0.05)
                 n_clusters += 1
                 
                 # Aktualizowane chunks_y_train
-                y_train_matrix, clusters_for_each_class = upload_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
+                y_train_matrix, clusters_for_each_class = add_cluster_update_semi_supervised_matrix(y_train, V_max_cluster_id, clusters_for_each_class, n_clusters, injection)
                 chunks_y_matrix = create_chunks(chunk_train_sizes, y_train_matrix)
     
                 # Ponowne obliczanie blędu rekonstrukcji
                 V_max_prev = V_max
                 V, V_max, V_max_cluster_id = reconstruction_error(data, fuzzy_labels, centroids, m)
                 split_while_iteration += 1
+                
             V_max_prev = V_max
+
+            # Liczba iteracji pętli merge
+            merge_while_iteration = 0
+
+            # Wyznaczenie parametru mergowanie Lambda
+            lambda_ = len(data) / n_clusters / 5
+
+            if(merge == True):
+                # Merge 
+                while which_to_merge(fuzzy_labels, lambda_= lambda_) != -1 and merge_while_iteration < 10:
+                    # Indeks usuwanego clustra
+                    merging_centroid_index = which_to_merge(fuzzy_labels, lambda_=lambda_)
+
+                    # Jeżeli to ostatni cluster z klasy to wychodzimy z pętli
+                    if(check_if_last_cluster_from_class(clusters_for_each_class, merging_centroid_index) == True):
+                        break
+                    # Łączymy centroidy
+                    centroids, fuzzy_labels = merge_centroids(data, fuzzy_labels, centroids, merging_centroid_index, m=2, metric='euclidean')
+                    n_clusters -= 1
+
+                    # Aktualizujemy przypisanie centroidów i aktualizujemy chunki
+                    y_train_matrix, clusters_for_each_class = delete_cluster_update_semi_supervised_matrix(y_train, merging_centroid_index, clusters_for_each_class, n_clusters, injection)
+                    chunks_y_matrix = create_chunks(chunk_train_sizes, y_train_matrix)
+                    
+                    merge_while_iteration += 1
             
             # Validacja danych
             silhouette_avg, davies_bouldin_avg, rand, fpc_test, statistics, cluster_to_class_assigned, fuzzy_labels, statistics_points = valid_data_dissfcm(validation_chunks, centroids, validation_chunks_y, clusters_for_each_class, m, error, metric, print_statistics)

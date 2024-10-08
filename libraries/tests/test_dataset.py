@@ -13,9 +13,9 @@ import sys
 import time
 from collections import Counter
 
-from libraries.process_data import convert_to_dataframe, reshape_data, sort_by_class, shuffle_dataset_with_chunk_sizes
+from libraries.process_data import convert_to_dataframe, reshape_data, sort_by_class, shuffle_dataset_with_chunk_sizes, stratified_chunks
 from libraries.process_data import stratify_data, extend_list, map_strings_to_ints, shuffle_dataset, knn_with_library, select_subset
-from libraries.clusters import average_by_class, generate_clusters_proportional, label_vector_to_semi_supervised_matrix, create_semi_supervised_matrix, upload_semi_supervised_matrix
+from libraries.clusters import average_by_class, generate_clusters_proportional, label_vector_to_semi_supervised_matrix, create_semi_supervised_matrix
 from libraries.plot_functions import visualise_labeled_data_all_dimensions, plot_pca, plot_pca_standard
 from libraries.plot_functions import create_set_for_stats, compare_models_statistics, overview_plot
 from tslearn.datasets import UCR_UEA_datasets
