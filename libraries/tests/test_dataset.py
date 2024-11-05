@@ -204,9 +204,22 @@ def test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_t
 
     return models
 
+def preprocess_data(X, y, num_classes):
+    n_samples, timesteps, features = X.shape
 
+    X_reshaped = X.reshape(n_samples, timesteps, features)  # Zachowaj trójwymiarowy kształt (batch_size, timesteps, features)
+
+    # Powielanie wartości y, aby było (n_samples, timesteps)
+    y_repeated = np.repeat(y, timesteps)
+
+    y_repeated = np.eye(num_classes)[y_repeated]
+
+    y_repeated = y_repeated.reshape(n_samples, timesteps, num_classes)
+
+    return X_reshaped, y_repeated
+    
 # This function tests the given dataset with the set parameters using various methods: IFCM, FCM, ISSFCM, DISSFCM, and KNN.
-def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_class_train = 3, elements_in_class_test = 0, n_clusters = 8, n_classes = 4, dim = 6, m = 2, error = 0.05, injection = 1.0, metric = 'euclidean', dataset_name = 'BasicMotions', visualise_processed_data = False, visualise_non_incremental_data = False, visualise_incremental_data = False, visualise_output_of_incremental_data = False, print_statistics_incremental_data = False):
+def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_class_train = 3, elements_in_class_test = 0, n_clusters = 8, n_classes = 4, dim = 6, m = 2, error = 0.05, injection = 1.0, metric = 'euclidean', dataset_name = 'BasicMotions', visualise_processed_data = False, visualise_non_incremental_data = False, visualise_incremental_data = False, visualise_output_of_incremental_data = False, print_statistics_incremental_data = False, X_train = None, y_train = None, X_val = None, y_val = None, X_test = None, y_test = None):
 
     # Początek pomiaru czasu
     start_time = time.time()
@@ -214,43 +227,57 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_
     # Inicjalizacja obiektu odpowiedzialnego za zbiory danych
     ucr_uea = UCR_UEA_datasets()
 
-    # Pobieranie zbioru danych dataset_name
-    X_train_, y_train_, X_test_, y_test_ = ucr_uea.load_dataset(dataset_name)
-
-    if(X_train_ is None):
-        raise ValueError("Wystąpił błąd: nie pobrano dataset'u. Sprawdź czy istnieje.")
-
-    # Konwersja do dataframe
-    X_train, y_train = convert_to_dataframe(X_train_, y_train_)
-    X_test, y_test = convert_to_dataframe(X_test_, y_test_)
-
-    # Padding/triming
-    X_train = adjust_dataframe(X_train, chunk_length_train)
-    X_test = adjust_dataframe(X_test, chunk_length_test)
+    # W przypadku kiedy pobramy dataset z ucr_uea
+    if dataset_name is not None:
+        # Pobieranie zbioru danych dataset_name
+        X_train_, y_train_, X_test_, y_test_ = ucr_uea.load_dataset(dataset_name)        
+        
+        if(X_train_ is None):
+            raise ValueError("Wystąpił błąd: nie pobrano dataset'u. Sprawdź czy istnieje.")
     
-    # Utworzenie zbioru validacyjnego
-    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=42, stratify=y_test)
-
-    # Łączymy obiekty jednej klasy w elements_in_class elementów
-    X_train, y_train, chunk_train_sizes = aggregate_by_class(X_train, y_train, elements_in_class_train)
-    X_test, y_test, chunk_test_sizes = aggregate_by_class(X_test, y_test, elements_in_class_test)
-    X_val, y_val, chunk_val_sizes = aggregate_by_class(X_val, y_val, elements_in_class_test)
-
-    # Zamienianie stringów na int
-    y_train, string_to_int = map_strings_to_ints(y_train)
-    y_test, string_to_int = map_strings_to_ints(y_test, string_to_int)
-    y_val, string_to_int = map_strings_to_ints(y_val, string_to_int)
-
-    # Poprawiamy rozmiar danych do 2d
-    X_train, y_train, chunk_train_sizes = reshape_data(X_train, y_train, chunk_train_sizes)
-    X_test, y_test, chunk_test_sizes = reshape_data(X_test, y_test, chunk_test_sizes)
-    X_val, y_val, chunk_val_sizes = reshape_data(X_val, y_val, chunk_val_sizes)
+        # Konwersja do dataframe
+        X_train, y_train = convert_to_dataframe(X_train_, y_train_)
+        X_test, y_test = convert_to_dataframe(X_test_, y_test_)
     
-    # Wyświetlamy zlabelowane dane oraz każdy ich wymiar
-    if(visualise_processed_data == True):
-        # Wizualizacja każdego wymiaru danych z osobna
-        visualise_labeled_data_all_dimensions(X_train, y_train, dim)
-
+        # Padding/triming
+        X_train = adjust_dataframe(X_train, chunk_length_train)
+        X_test = adjust_dataframe(X_test, chunk_length_test)
+        
+        # Utworzenie zbioru validacyjnego
+        X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=42, stratify=y_test)
+    
+        # Łączymy obiekty jednej klasy w elements_in_class elementów
+        X_train, y_train, chunk_train_sizes = aggregate_by_class(X_train, y_train, elements_in_class_train)
+        X_test, y_test, chunk_test_sizes = aggregate_by_class(X_test, y_test, elements_in_class_test)
+        X_val, y_val, chunk_val_sizes = aggregate_by_class(X_val, y_val, elements_in_class_test)
+    
+        # Zamienianie stringów na int
+        y_train, string_to_int = map_strings_to_ints(y_train)
+        y_test, string_to_int = map_strings_to_ints(y_test, string_to_int)
+        y_val, string_to_int = map_strings_to_ints(y_val, string_to_int)
+    
+        # Poprawiamy rozmiar danych do 2d
+        X_train, y_train, chunk_train_sizes = reshape_data(X_train, y_train, chunk_train_sizes)
+        X_test, y_test, chunk_test_sizes = reshape_data(X_test, y_test, chunk_test_sizes)
+        X_val, y_val, chunk_val_sizes = reshape_data(X_val, y_val, chunk_val_sizes)
+        
+        # Wyświetlamy zlabelowane dane oraz każdy ich wymiar
+        if(visualise_processed_data == True):
+            # Wizualizacja każdego wymiaru danych z osobna
+            visualise_labeled_data_all_dimensions(X_train, y_train, dim)
+    else:
+        # Takie dane dostajemy, rozmiar X_train to (n_samples, n_frames, n_features)
+        # y_train (n_samples)
+        #X_train, y_train, X_val, y_val, X_test, y_test
+        
+        chunk_train_sizes = [ X_train.shape[1] for x in range(len(X_train))]
+        chunk_test_sizes = [ X_test.shape[1] for x in range(len(X_test))]
+        chunk_val_sizes = [ X_val.shape[1] for x in range(len(X_val))]
+        
+        X_train, y_train = preprocess_data(X_train, y_train, n_classes)
+        X_val, y_val = preprocess_data(X_val, y_val, n_classes)
+        X_test, y_test = preprocess_data(X_test, y_test, n_classes)
+                
     # Dane losowo potasowane
     X_train_shuffled, y_train_shuffled = shuffle_dataset(X_train, y_train)
     X_test_shuffled, y_test_shuffled = shuffle_dataset(X_test, y_test)
@@ -276,7 +303,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_
     chunks_val_shuffled, chunks_val_y_shuffled, _ = create_dataset_chunks(chunk_val_sizes, X_val_shuffled, y_val_shuffled)
 
     # Porównujemy algorytmy FCM nie inkrementacyjne oraz knn
-    test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_train_matrix, X_test, y_test, chunks_test, chunks_test_y, clusters_for_each_class, error=error, m=m, visualise_non_incremental_data=visualise_non_incremental_data)
+    models_non_incrmental = test_non_incremental_algorithms(n_clusters, n_classes, X_train, y_train, y_train_matrix, X_test, y_test, chunks_test, chunks_test_y, clusters_for_each_class, error=error, m=m, visualise_non_incremental_data=visualise_non_incremental_data)
 
 #########################################################################################################################################
 
@@ -384,7 +411,7 @@ def test_dataset(chunk_length_train = 1000, chunk_length_test = 50, elements_in_
     print(f"Czas wykonania wszystkich algorytmów: {execution_time} sekund")
 
     # Zwracamy słownik wraz z wynikami oraz centroidami
-    return output
+    return output, models_non_incrmental
 
 
 

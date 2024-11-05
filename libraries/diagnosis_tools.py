@@ -23,7 +23,7 @@ def plot_multiple_functions(args, title='multiple functions'):
         x_values = list(range(len(y_values)))  # Zakładamy, że x to indeksy listy y
         plt.plot(x_values, y_values, label=label)
     
-    plt.xlabel('Index')
+    plt.xlabel('Chunk index')
     plt.ylabel('Value')
     plt.title(title)
     plt.legend()

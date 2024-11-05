@@ -124,7 +124,7 @@ def create_semi_supervised_matrix(X, y, n_clusters, injection=0.5):
 
     average_classes = average_by_class(X, y)
 
-    init_centroids, class_of_centroid, clusters_for_each_class = generate_clusters_proportional(average_classes, n_clusters, deviation=0.1)
+    init_centroids, class_of_centroid, clusters_for_each_class = generate_clusters_proportional(average_classes, n_clusters, deviation=10)
 
     y_matrix = label_vector_to_semi_supervised_matrix(y, n_clusters, clusters_for_each_class, injection)
 

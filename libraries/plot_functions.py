@@ -527,10 +527,10 @@ def prepare_diagnosis_data_for_plotting(diagnosis_chunk, diagnosis_iterations):
 # Funkcja wyświetla historię rozwoju algorytmu IFCM (i jego odmian)
 def overview_plot(diagnosis_chunk, diagnosis_iterations, n_centroids_history=5):
     print('Historia danych ze względu na kolejne chunki')
-    diagnosis_chunk.plot_lists('Historia danych ze względu na kolejne chunki')
+    diagnosis_chunk.plot_lists('Clustering quality based on algorithm history')
     
     print('Historia statystyk ze względu na kolejne chunki')
-    diagnosis_chunk.plot_statistics('Historia danych ze względu na kolejne chunki')
+    diagnosis_chunk.plot_statistics('Model accuracy with respect to successive chunks')
     
     print('Historia danych ze względu na kolejne chunki + historia rozwoju wewnątrz oblczeń dla pojedyńczego chunku')
     chunk_lists, iter_lists, iter_lists_concatenate = prepare_diagnosis_data_for_plotting(diagnosis_chunk, diagnosis_iterations)
