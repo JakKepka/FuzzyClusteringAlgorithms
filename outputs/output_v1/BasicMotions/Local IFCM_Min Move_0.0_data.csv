@@ -1,0 +1,11 @@
+Algorithm,n_clusters,error,Classifier,Centroids,Accuracy,Precision,Recall,F1
+Local IFCM,4,0.0,Min Move,4.0,1.0,1.0,1.0,1.0
+Local IFCM,8,0.0,Min Move,8.0,1.0,1.0,1.0,1.0
+Local IFCM,12,0.0,Min Move,12.0,1.0,1.0,1.0,1.0
+Local IFCM,16,0.0,Min Move,16.0,1.0,1.0,1.0,1.0
+Local IFCM,20,0.0,Min Move,20.0,1.0,1.0,1.0,1.0
+Local IFCM,24,0.0,Min Move,24.0,1.0,1.0,1.0,1.0
+Local IFCM,28,0.0,Min Move,28.0,1.0,1.0,1.0,1.0
+Local IFCM,32,0.0,Min Move,32.0,1.0,1.0,1.0,1.0
+Local IFCM,36,0.0,Min Move,36.0,1.0,1.0,1.0,1.0
+Local IFCM,40,0.0,Min Move,40.0,1.0,1.0,1.0,1.0

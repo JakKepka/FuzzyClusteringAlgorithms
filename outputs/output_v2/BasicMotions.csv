@@ -1,0 +1,111 @@
+Dataset,Algorithm,Classifier,Centroids,Accuracy,Precision,Recall,F1,param1,param2
+BasicMotions,FCM,Turn Vote,20,0.8125,0.8928571428571428,0.8125,0.7818181818181819,40,
+BasicMotions,FCM,Majority Vote,20,0.75,0.5666666666666667,0.75,0.6444444444444446,40,
+BasicMotions,FCM,Min Move,8,0.6875,0.575,0.6875,0.6031746031746031,8,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,22,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,22,0.875,0.9166666666666665,0.875,0.8666666666666666,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,12,0.9375,0.95,0.9375,0.9365079365079366,12,
+BasicMotions,Local IFCM,Majority Vote,12,0.8125,0.8666666666666666,0.8125,0.7722222222222223,12,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.5928571428571429,0.75,0.6540404040404042,40,
+BasicMotions,FCM,Majority Vote,8,0.875,0.9166666666666665,0.875,0.8666666666666666,40,
+BasicMotions,FCM,Min Move,16,1.0,1.0,1.0,1.0,16,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,39,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,36,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,20,0.75,0.5928571428571429,0.75,0.6540404040404042,20,
+BasicMotions,Local IFCM,Majority Vote,20,1.0,1.0,1.0,1.0,20,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.5833333333333333,0.75,0.65,40,
+BasicMotions,FCM,Majority Vote,8,0.8125,0.8666666666666666,0.8125,0.7722222222222223,40,
+BasicMotions,FCM,Min Move,12,1.0,1.0,1.0,1.0,12,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,17,0.9375,0.95,0.9375,0.9365079365079364,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,17,0.875,0.9166666666666665,0.875,0.8666666666666666,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,0.9375,0.95,0.9375,0.9365079365079366,4,0.01
+BasicMotions,Local IFCM,Turn Vote,12,0.8125,0.8928571428571428,0.8125,0.7818181818181819,12,
+BasicMotions,Local IFCM,Majority Vote,12,0.75,0.5833333333333333,0.75,0.65,12,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.625,0.75,0.6666666666666665,20,
+BasicMotions,FCM,Majority Vote,8,0.8125,0.8666666666666666,0.8125,0.7722222222222223,20,
+BasicMotions,FCM,Min Move,12,1.0,1.0,1.0,1.0,12,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,35,1.0,1.0,1.0,1.0,4,0.1
+BasicMotions,Local DISSFCM,Majority Vote,24,0.9375,0.95,0.9375,0.9365079365079366,4,0.01
+BasicMotions,Local DISSFCM,Min Move,7,0.9375,0.95,0.9375,0.9365079365079366,4,0.01
+BasicMotions,Local IFCM,Turn Vote,8,0.9375,0.95,0.9375,0.9365079365079366,8,
+BasicMotions,Local IFCM,Majority Vote,8,0.9375,0.95,0.9375,0.9365079365079366,8,
+BasicMotions,Local IFCM,Min Move,4,0.9375,0.95,0.9375,0.9365079365079364,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.625,0.75,0.6666666666666665,32,
+BasicMotions,FCM,Majority Vote,8,0.75,0.5928571428571429,0.75,0.6540404040404042,32,
+BasicMotions,FCM,Min Move,40,0.875,0.8875,0.875,0.8740079365079366,40,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,29,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,29,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,34,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,8,0.8125,0.8928571428571428,0.8125,0.7818181818181819,8,
+BasicMotions,Local IFCM,Majority Vote,8,0.875,0.9,0.875,0.8611111111111112,8,
+BasicMotions,Local IFCM,Min Move,4,0.9375,0.95,0.9375,0.9365079365079366,4,
+BasicMotions,FCM,Turn Vote,36,0.75,0.625,0.75,0.6666666666666665,12,
+BasicMotions,FCM,Majority Vote,36,0.75,0.625,0.75,0.6666666666666665,12,
+BasicMotions,FCM,Min Move,16,0.875,0.9,0.875,0.8611111111111112,16,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,14,0.9375,0.95,0.9375,0.9365079365079366,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,17,0.875,0.9166666666666665,0.875,0.8666666666666666,4,0.01
+BasicMotions,Local DISSFCM,Min Move,8,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,28,0.8125,0.8928571428571428,0.8125,0.8127705627705627,28,
+BasicMotions,Local IFCM,Majority Vote,28,0.9375,0.95,0.9375,0.9365079365079366,28,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.5928571428571429,0.75,0.6540404040404042,12,
+BasicMotions,FCM,Majority Vote,8,0.75,0.5666666666666667,0.75,0.6444444444444446,12,
+BasicMotions,FCM,Min Move,24,0.875,0.9166666666666665,0.875,0.8785714285714286,24,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,39,1.0,1.0,1.0,1.0,4,0.1
+BasicMotions,Local DISSFCM,Majority Vote,55,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,0.9375,0.95,0.9375,0.9365079365079364,4,0.01
+BasicMotions,Local IFCM,Turn Vote,16,0.75,0.625,0.75,0.6666666666666665,16,
+BasicMotions,Local IFCM,Majority Vote,16,0.75,0.5928571428571429,0.75,0.6540404040404042,16,
+BasicMotions,Local IFCM,Min Move,4,0.875,0.8875,0.875,0.8740079365079366,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.625,0.75,0.6666666666666665,12,
+BasicMotions,FCM,Majority Vote,8,0.75,0.5666666666666667,0.75,0.6444444444444446,12,
+BasicMotions,FCM,Min Move,12,1.0,1.0,1.0,1.0,12,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,23,0.9375,0.95,0.9375,0.9365079365079366,4,1
+BasicMotions,Local DISSFCM,Majority Vote,17,0.875,0.9,0.875,0.8611111111111112,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,24,0.8125,0.8928571428571428,0.8125,0.7818181818181819,24,
+BasicMotions,Local IFCM,Majority Vote,24,0.875,0.9166666666666665,0.875,0.8666666666666666,24,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,36,1.0,1.0,1.0,1.0,12,
+BasicMotions,FCM,Majority Vote,36,0.8125,0.8928571428571428,0.8125,0.7818181818181819,12,
+BasicMotions,FCM,Min Move,20,1.0,1.0,1.0,1.0,20,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,24,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,46,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,28,1.0,1.0,1.0,1.0,28,
+BasicMotions,Local IFCM,Majority Vote,28,0.9375,0.95,0.9375,0.9365079365079366,28,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,
+BasicMotions,FCM,Turn Vote,8,0.75,0.625,0.75,0.6666666666666665,40,
+BasicMotions,FCM,Majority Vote,8,0.75,0.5928571428571429,0.75,0.6540404040404042,40,
+BasicMotions,FCM,Min Move,24,1.0,1.0,1.0,1.0,24,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,36,1.0,1.0,1.0,1.0,4,0.1
+BasicMotions,Local DISSFCM,Majority Vote,39,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,16,0.8125,0.8666666666666666,0.8125,0.7722222222222223,16,
+BasicMotions,Local IFCM,Majority Vote,16,0.875,0.9166666666666665,0.875,0.8666666666666666,16,
+BasicMotions,Local IFCM,Min Move,4,0.9375,0.95,0.9375,0.9365079365079366,4,
+BasicMotions,FCM,Turn Vote,12,0.75,0.825,0.75,0.7222222222222223,12,
+BasicMotions,FCM,Majority Vote,12,0.8125,0.8928571428571428,0.8125,0.8127705627705627,12,
+BasicMotions,FCM,Min Move,12,1.0,1.0,1.0,1.0,12,
+BasicMotions,KNN,Majority Vote,0,1.0,1.0,1.0,1.0,15,
+BasicMotions,Local DISSFCM,Turn Vote,38,0.9375,0.95,0.9375,0.9365079365079366,4,0.01
+BasicMotions,Local DISSFCM,Majority Vote,33,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local DISSFCM,Min Move,4,1.0,1.0,1.0,1.0,4,0.01
+BasicMotions,Local IFCM,Turn Vote,8,0.8125,0.8928571428571428,0.8125,0.7818181818181819,8,
+BasicMotions,Local IFCM,Majority Vote,8,0.8125,0.8928571428571428,0.8125,0.7818181818181819,8,
+BasicMotions,Local IFCM,Min Move,4,1.0,1.0,1.0,1.0,4,

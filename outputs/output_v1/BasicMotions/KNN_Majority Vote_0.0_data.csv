@@ -1,0 +1,14 @@
+Algorithm,n_clusters,error,Classifier,Centroids,Accuracy,Precision,Recall,F1
+KNN,3,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,4,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,5,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,6,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,7,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,8,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,9,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,10,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,11,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,12,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,13,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,14,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
+KNN,15,0.0,Majority Vote,0.0,1.0,1.0,1.0,1.0
